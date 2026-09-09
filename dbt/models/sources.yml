@@ -17,3 +17,6 @@ sources:
       - name: delivery_events
       - name: safety_incidents
       - name: maintenance_records
+    # freshness: warn_after 24h, error_after 48h on _loaded_at — see ARCHITECTURE.md SLA section
+    # dbt source freshness check would be: dbt source freshness --select source:bronze
+    # Currently disabled for dbt-fusion parse compatibility; enable when warehouse has sql scope
