@@ -11,7 +11,7 @@ BEGIN
     CREATE ROLE freightlake_mart_user WITH LOGIN PASSWORD 'changeme';
   END IF;
   IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'airflow') THEN
-    CREATE ROLE airflow WITH LOGIN PASSWORD 'changeme' CREATEDB;
+    CREATE ROLE airflow WITH LOGIN PASSWORD 'admin' CREATEDB;
   END IF;
 END $$;
 
