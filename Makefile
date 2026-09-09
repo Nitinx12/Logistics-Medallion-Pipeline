@@ -41,6 +41,13 @@ publish:
 pipeline: seed bronze dbt-build publish
 	@echo "Full local pipeline complete"
 
+local-pipeline:
+	@$(PYTHON) scripts/run_local_pipeline.py
+
+local-pipeline-clean:
+	@rm -rf delta watermarks.json
+	@$(PYTHON) scripts/run_local_pipeline.py
+
 lint:
 	@$(UV) run ruff check .
 	@$(UV) run ruff format --check .
