@@ -23,11 +23,35 @@ models:
       - name: load_id
         tests: [not_null, unique]
       - name: customer_id
-        tests: [not_null, relationships: {to: ref('stg_customers'), field: customer_id}]
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
 
   - name: dim_driver
     columns:
       - name: driver_sk
         tests: [not_null, unique]
       - name: driver_id
+        tests: [not_null]
+
+  - name: stg_trips
+    columns:
+      - name: trip_id
+        tests: [not_null, unique]
+      - name: load_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_loads')
+                field: load_id
+
+  - name: dim_vehicle
+    columns:
+      - name: vehicle_sk
+        tests: [not_null, unique]
+      - name: truck_id
         tests: [not_null]
