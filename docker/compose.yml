@@ -10,14 +10,16 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-changeme}
       POSTGRES_DB: postgres
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_DOCKER_PORT:-5434}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ../sql/oltp_schema:/docker-entrypoint-initdb.d:ro
+      - ../docker/init:/docker-entrypoint-initdb.d:ro
+      - ../sql/oltp_schema:/tmp/oltp_schema:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPERUSER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_SUPERUSER:-postgres} -d postgres"]
       interval: 5s
-      retries: 10
+      retries: 20
+      start_period: 10s
 
   mongo:
     image: mongo:7
