@@ -23,8 +23,8 @@ seed:
 	@bash scripts/bash/seed_data.sh
 
 bronze:
-	@$(PYTHON) spark_jobs/bronze/extract_postgres_oltp.py
-	@$(PYTHON) spark_jobs/bronze/extract_mongo_tracking.py
+	@$(PYTHON) -m spark_jobs.bronze.extract_postgres_oltp
+	@$(PYTHON) -m spark_jobs.bronze.extract_mongo_tracking
 
 dbt-run:
 	@bash scripts/bash/dbt.sh run
@@ -36,7 +36,7 @@ dbt-docs:
 	@bash scripts/bash/dbt.sh docs
 
 publish:
-	@$(PYTHON) spark_jobs/publish/publish_gold_to_postgres.py
+	@$(PYTHON) -m spark_jobs.publish.publish_gold_to_postgres
 
 pipeline: seed bronze dbt-build publish
 	@echo "Full local pipeline complete"

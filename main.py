@@ -1,9 +1,9 @@
-from pathlib import Path
 import os
+from pathlib import Path
 
 import pandas as pd
-from pymongo import MongoClient
 from dotenv import load_dotenv
+from pymongo import MongoClient
 
 load_dotenv()
 

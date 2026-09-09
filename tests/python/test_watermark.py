@@ -1,5 +1,6 @@
 """Watermark filtering and merge condition tests."""
 
+
 def filter_by_watermark(rows, watermark):
     return [r for r in rows if r["updated_at"] > watermark]
 

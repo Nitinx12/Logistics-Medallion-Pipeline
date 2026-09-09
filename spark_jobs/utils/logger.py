@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import pathlib
-from typing import Optional
 
 LOG_DIR = pathlib.Path("logs")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
