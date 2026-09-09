@@ -6,10 +6,6 @@ sources:
     schema: "{{ env_var('DATABRICKS_SCHEMA_BRONZE', 'bronze') }}"
     tables:
       - name: customers
-        freshness:
-          warn_after: {count: 24, period: hour}
-          error_after: {count: 48, period: hour}
-        loaded_at_field: _loaded_at
       - name: drivers
       - name: trucks
       - name: trailers
@@ -19,6 +15,5 @@ sources:
       - name: trips
       - name: fuel_purchases
       - name: delivery_events
-        loaded_at_field: _loaded_at
       - name: safety_incidents
       - name: maintenance_records
