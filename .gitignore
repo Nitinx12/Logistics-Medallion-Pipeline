@@ -1,11 +1,308 @@
-# Python-generated files
+# ============================================================
+# FreightLake — .gitignore
+# ============================================================
+
+# ------------------------------------------------------------
+# Environment & Secrets
+# ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
+config/secrets/
+
+# ------------------------------------------------------------
+# Python
+# ------------------------------------------------------------
 __pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+*.py[cod]
+*$py.class
+*.so
 
 # Virtual environments
-.venv
-.env
+.venv/
+venv/
+env/
+ENV/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+wheels/
+
+# Coverage / testing
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+
+# Linters / formatters
+.ruff_cache/
+.ruff/
+.pytype/
+
+# ------------------------------------------------------------
+# uv
+# ------------------------------------------------------------
+# Keep uv.lock committed for reproducible environments.
+# DO NOT ignore uv.lock.
+
+# ------------------------------------------------------------
+# Jupyter
+# ------------------------------------------------------------
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# ------------------------------------------------------------
+# PostgreSQL
+# ------------------------------------------------------------
+*.sql.gz
+*.dump
+*.backup
+*.bak
+
+# PostgreSQL local data directories
+postgres_data/
+postgresql_data/
+pgdata/
+
+# ------------------------------------------------------------
+# MongoDB
+# ------------------------------------------------------------
+mongodb_data/
+mongo_data/
+mongodata/
+
+# ------------------------------------------------------------
+# Databricks / Spark
+# ------------------------------------------------------------
+.spark/
+spark-warehouse/
+metastore_db/
+derby.log/
+
+# Delta / generated local data
+delta/
+_checkpoints/
+checkpoints/
+*.crc
+
+# Databricks local configuration
+.databricks/
+
+# ------------------------------------------------------------
+# Airflow
+# ------------------------------------------------------------
+airflow/logs/
+airflow/logs/**
+airflow/.airflowignore
+
+# Airflow local database
+airflow.db
+airflow.cfg
+
+# ------------------------------------------------------------
+# Docker
+# ------------------------------------------------------------
+.docker/
+docker-data/
+docker/volumes/
+docker/*/data/
+
+# Docker Compose generated environment files
+docker/.env
+
+# ------------------------------------------------------------
+# Generated ETL / Pipeline Output
+# ------------------------------------------------------------
+output/
+outputs/
+generated/
+artifacts/
+tmp/
+temp/
+cache/
+.cache/
+
+# Pipeline checkpoints / state
+state/
+watermarks/
+*.checkpoint
+
+# ------------------------------------------------------------
+# Logs
+# ------------------------------------------------------------
+*.log
+logs/
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ------------------------------------------------------------
+# Data
+# ------------------------------------------------------------
+
+# Ignore generated/local raw data by default
+# Uncomment if your CSV files are generated and should NOT be committed:
+# data/*.csv
+
+# Ignore temporary exports
+data/tmp/
+data/temp/
+data/output/
+data/processed/
+data/*.parquet
+data/*.json
+data/*.jsonl
+
+# Keep project seed CSVs if intentionally versioned.
+# These are currently part of the FreightLake project.
+
+# ------------------------------------------------------------
+# Great Expectations
+# ------------------------------------------------------------
+great_expectations/uncommitted/
+great_expectations/expectations/validation/
+great_expectations/checkpoints/
+great_expectations/plugins/
+
+# ------------------------------------------------------------
+# dbt
+# ------------------------------------------------------------
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+dbt/packages.yml.lock
+
+# Keep:
+# dbt/dbt_project.yml
+# dbt/models/
+# dbt/sources.yml
+# dbt/schema.yml
+
+# ------------------------------------------------------------
+# Databricks CLI / local state
+# ------------------------------------------------------------
+.databricks/
+.databricksignore
+
+# ------------------------------------------------------------
+# VS Code
+# ------------------------------------------------------------
+.vscode/
+*.code-workspace
+
+# ------------------------------------------------------------
+# JetBrains
+# ------------------------------------------------------------
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# ------------------------------------------------------------
+# Windows
+# ------------------------------------------------------------
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# ------------------------------------------------------------
+# macOS
+# ------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ------------------------------------------------------------
+# Linux
+# ------------------------------------------------------------
+*~
+.directory
+
+# ------------------------------------------------------------
+# Temporary / Backup Files
+# ------------------------------------------------------------
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.backup
+*.orig
+*.rej
+
+# ------------------------------------------------------------
+# Terraform / Infrastructure
+# ------------------------------------------------------------
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+# ------------------------------------------------------------
+# Node / Frontend (if dashboard is added later)
+# ------------------------------------------------------------
+node_modules/
+.npm/
+.yarn/
+.pnpm-store/
+.next/
+.nuxt/
+dist/
+
+# ------------------------------------------------------------
+# Secrets accidentally generated by tools
+# ------------------------------------------------------------
+*.secret
+*.token
+*.credentials
+*.credentials.json
+
+# ------------------------------------------------------------
+# Local project configuration
+# ------------------------------------------------------------
+local/
+.local/
+*.local
+
+# ------------------------------------------------------------
+# OS/editor temporary files
+# ------------------------------------------------------------
+*.orig
+*.rej
+*.swp
+*.swo
+
+# ------------------------------------------------------------
+# data files
+# ------------------------------------------------------------
+*.csv
+*.tsv
+data/*.csv
