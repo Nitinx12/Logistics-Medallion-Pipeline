@@ -42,15 +42,19 @@ dbt-docs:
 publish:
 	@$(PYTHON) -m spark_jobs.publish.publish_gold_to_postgres
 
-pipeline: seed bronze dbt-build publish
+main:
+	@$(PYTHON) main.py
+
+pipeline: 
+	@$(PYTHON) main.py
 	@echo "Full local pipeline complete"
 
 local-pipeline:
-	@$(PYTHON) scripts/run_local_pipeline.py
+	@$(PYTHON) main.py --skip-docker
 
 local-pipeline-clean:
 	@bash -c "rm -rf delta watermarks.json"
-	@$(PYTHON) scripts/run_local_pipeline.py
+	@$(PYTHON) main.py --skip-docker
 
 lint:
 	@$(UV) run ruff check spark_jobs scripts tests
