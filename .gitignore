@@ -140,6 +140,7 @@ cache/
 # Pipeline checkpoints / state
 state/
 watermarks/
+watermarks.json
 *.checkpoint
 
 # ------------------------------------------------------------
