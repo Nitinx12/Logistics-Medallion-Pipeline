@@ -1,0 +1,34 @@
+"""FreightLake publish DAG — gold to mart downstream of silver gold."""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from airflow.sensors.external_task import ExternalTaskSensor
+
+default_args = {"owner": "freightlake", "retries": 1}
+
+with DAG(
+    dag_id="freightlake_publish_dag",
+    start_date=datetime(2026, 1, 1),
+    schedule="0 7 * * *",
+    catchup=False,
+    default_args=default_args,
+    tags=["freightlake", "publish"],
+) as dag:
+    wait_silver_gold = ExternalTaskSensor(
+        task_id="wait_silver_gold",
+        external_dag_id="freightlake_silver_gold_dag",
+        external_task_id="dbt_build",
+        timeout=7200,
+        poke_interval=60,
+    )
+
+    publish = BashOperator(
+        task_id="publish_gold_to_postgres",
+        bash_command="python /opt/airflow/spark_jobs/publish/publish_gold_to_postgres.py",
+    )
+
+    wait_silver_gold >> publish
