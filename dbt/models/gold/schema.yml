@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: dim_customer
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]
+  - name: dim_warehouse
+    columns:
+      - name: warehouse_id
+        tests: [not_null, unique]
+  - name: dim_route
+    columns:
+      - name: route_id
+        tests: [not_null, unique]
+  - name: dim_date
+    columns:
+      - name: date_id
+        tests: [not_null, unique]
+  - name: fct_orders
+    columns:
+      - name: order_id
+        tests: [not_null, unique]
+      - name: customer_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer')
+                field: customer_id
+  - name: fct_shipments
+    columns:
+      - name: shipment_id
+        tests: [not_null, unique]
+  - name: fct_deliveries
+    columns:
+      - name: delivery_id
+        tests: [not_null, unique]

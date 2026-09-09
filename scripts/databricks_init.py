@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -40,7 +41,9 @@ def via_sql() -> None:
 
 
 def via_files() -> None:
-    print("SQL scope missing — using file fallback. Run sql/databricks/schemas.sql manually in Databricks UI.")
+    print(
+        "SQL scope missing — using file fallback. Run sql/databricks/schemas.sql manually in Databricks UI."
+    )
     schema_sql = pathlib.Path("sql/databricks/schemas.sql").read_text()
     print(schema_sql[:500])
 

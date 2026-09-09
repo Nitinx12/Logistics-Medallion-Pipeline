@@ -1,0 +1,25 @@
+version: 2
+
+metrics:
+  - name: on_time_delivery_rate
+    label: On Time Delivery Rate
+    model: ref('fct_deliveries')
+    calculation_method: average
+    expression: "is_on_time"
+    timestamp: delivery_ts
+    time_grains: [day, week, month]
+    dimensions: [status]
+
+  - name: avg_delivery_time
+    label: Average Delivery Time
+    model: ref('fct_shipments')
+    calculation_method: average
+    expression: duration_hours
+    timestamp: ship_date
+
+  - name: revenue_per_route
+    label: Revenue Per Route
+    model: ref('fct_orders')
+    calculation_method: sum
+    expression: revenue
+    dimensions: [route_id]

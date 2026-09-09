@@ -62,6 +62,56 @@ dbt tests for structural checks plus Great Expectations suite `great_expectation
 
 Delta Lake over Iceberg due to native Databricks integration and `MERGE INTO` maturity. ELT over ETL because transform lives inside lakehouse via dbt. LocalExecutor for Airflow keeps compose simple. Databricks Community Edition is sufficient, Unity Catalog features degrade gracefully to hive metastore.
 
+## Medallion detail
+
+```mermaid
+flowchart TB
+    subgraph Bronze
+        B_CUST[customers] --> B_LOAD[loads]
+        B_DRIV[drivers] --> B_TRIP[trips]
+        B_TRUCK[trucks] --> B_FUEL[fuel_purchases]
+        B_MONGO[delivery_events] --> B_SAFETY[safety_incidents]
+    end
+    subgraph Silver
+        S_CUST[stg_customers] --> S_DIMCUST[dim_customer]
+        S_DRIV[stg_drivers] --> S_SCDD[dim_driver SCD2]
+        S_TRUCK[stg_trucks] --> S_SCDV[dim_vehicle SCD2]
+        S_LOAD[stg_loads] --> S_TRIP[stg_trips]
+    end
+    subgraph Gold
+        G_DIMC[dim_customer] --> G_FCTO[fct_orders]
+        G_DIMR[dim_route] --> G_FCTS[fct_shipments]
+        G_DIMD[dim_date] --> G_FCTD[fct_deliveries]
+    end
+    B_CUST --> S_CUST --> G_DIMC
+    B_DRIV --> S_SCDD --> G_FCTS
+    B_LOAD --> S_LOAD --> G_FCTO
+```
+
+## Orchestration and lineage
+
+```mermaid
+flowchart LR
+    BRONZE[freightlake_bronze_dag<br/>04:00 SLA 2h] --> SILVER[freightlake_silver_gold_dag<br/>06:00]
+    SILVER --> PUBLISH[freightlake_publish_dag<br/>07:00]
+    BRONZE -. ExternalTaskSensor .-> SILVER
+    SILVER -. ExternalTaskSensor .-> PUBLISH
+    PUBLISH --> MART[(mart)]
+    SILVER --> DOCS[dbt docs lineage]
+    DOCS --> DICT[data_dictionary.md]
+```
+
+## Serving and performance
+
+```mermaid
+flowchart TB
+    GOLD[(freightlake.gold<br/>Delta)] --> PUBLISH_JOB[publish_gold_to_postgres.py<br/>MERGE watermark]
+    PUBLISH_JOB --> MART[(freightlake_mart.mart<br/>star schema)]
+    MART --> BI[Power BI]
+    MART --> INDEXES[indexes on customer_id, route_id, date]
+    GOLD --> PARTITION[partition by _loaded_date<br/>prune]
+```
+
 ## Repo layout
 
 See `docs/PROJECT_PLAN.md:198`. Build order follows phases `docs/PROJECT_PLAN.md:374`.
