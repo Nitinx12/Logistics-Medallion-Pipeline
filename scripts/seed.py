@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import os
 import pathlib
-import sys
 
 import pandas as pd
 import psycopg2
@@ -55,7 +54,7 @@ def pg_seed():
         try:
             cur.execute(sql)
             print(f"  DDL {sql_file.name} OK")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"  DDL {sql_file.name} ERR {e}")
     # load CSVs
     for csv_name, table in PG_MAP.items():
@@ -82,11 +81,14 @@ def pg_seed():
         try:
             cur.copy_expert(f"COPY {table} ({cols}) FROM STDIN WITH CSV", buf)
             print(f"  {table}: {len(df)} rows")
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"  {table} COPY ERR {e} — falling back to insert")
             for _, row in df.iterrows():
                 placeholders = ",".join(["%s"] * len(row))
-                cur.execute(f"INSERT INTO {table} ({cols}) VALUES ({placeholders}) ON CONFLICT DO NOTHING", tuple(row))
+                cur.execute(
+                    f"INSERT INTO {table} ({cols}) VALUES ({placeholders}) ON CONFLICT DO NOTHING",
+                    tuple(row),
+                )
             print(f"  {table}: {len(df)} rows via insert")
     cur.close()
     conn.close()
@@ -102,7 +104,7 @@ def mongo_seed():
             client = c
             print(f"  connected {uri}")
             break
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             print(f"  {uri} failed {e}")
     if client is None:
         print("  Mongo not reachable, skipping")
