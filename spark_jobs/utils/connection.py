@@ -11,15 +11,24 @@ load_dotenv()
 
 
 def pg_oltp_url() -> str:
-    return os.getenv("POSTGRES_OLTP_URL", "postgresql://freightlake_oltp_user:changeme@localhost:5432/freightlake_oltp")
+    return os.getenv(
+        "POSTGRES_OLTP_URL",
+        "postgresql://freightlake_oltp_user:changeme@localhost:5432/freightlake_oltp",
+    )
 
 
 def pg_mart_url() -> str:
-    return os.getenv("POSTGRES_MART_URL", "postgresql://freightlake_mart_user:changeme@localhost:5432/freightlake_mart")
+    return os.getenv(
+        "POSTGRES_MART_URL",
+        "postgresql://freightlake_mart_user:changeme@localhost:5432/freightlake_mart",
+    )
 
 
 def mongo_uri() -> str:
-    return os.getenv("MONGO_URI", "mongodb://root:changeme@localhost:27017/freightlake_tracking?authSource=admin")
+    return os.getenv(
+        "MONGO_URI",
+        "mongodb://root:changeme@localhost:27017/freightlake_tracking?authSource=admin",
+    )
 
 
 def databricks_cfg() -> dict[str, Any]:

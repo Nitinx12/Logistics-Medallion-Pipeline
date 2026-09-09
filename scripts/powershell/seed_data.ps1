@@ -1,4 +1,6 @@
 Import-Module "$PSScriptRoot/lib/Common.psm1"
-Write-Info "Seeding Postgres and Mongo from data/"
-uv run python -c "import pathlib; print('seed stub: would load CSVs into Postgres/Mongo')"
-Write-Success "Seed complete"
+$ProjectRoot = Find-ProjectRoot $PSScriptRoot
+Set-Location $ProjectRoot
+Write-Info "Seeding Postgres OLTP and Mongo from data/"
+uv run python scripts/seed.py
+Write-Success "Seed complete — Postgres freight_lake + Mongo freight_lake"

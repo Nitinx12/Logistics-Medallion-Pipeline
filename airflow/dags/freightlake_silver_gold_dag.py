@@ -2,17 +2,22 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
-from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.sensors.external_task import ExternalTaskSensor
 
-default_args = {"owner": "freightlake", "retries": 1, "retry_delay": timedelta(minutes=5)}
+from airflow import DAG
+
+default_args = {
+    "owner": "freightlake",
+    "retries": 1,
+    "retry_delay": timedelta(minutes=5),
+}
 
 with DAG(
     dag_id="freightlake_silver_gold_dag",
-    start_date=datetime(2026, 1, 1),
+    start_date=datetime(2026, 1, 1, tzinfo=UTC),
     schedule="0 6 * * *",
     catchup=False,
     default_args=default_args,
