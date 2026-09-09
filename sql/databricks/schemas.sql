@@ -33,6 +33,5 @@ CREATE TABLE IF NOT EXISTS freightlake.bronze.etl_watermark (
 COMMENT 'Bronze watermark table for incremental loads';
 
 -- Verify
-SHOW CATALOGS LIKE 'freightlake';
 SHOW SCHEMAS IN freightlake;
 SHOW TABLES IN freightlake.bronze;

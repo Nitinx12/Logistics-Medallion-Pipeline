@@ -53,11 +53,14 @@ local-pipeline-clean:
 	@$(PYTHON) scripts/run_local_pipeline.py
 
 lint:
-	@$(UV) run ruff check .
-	@$(UV) run ruff format --check .
+	@$(UV) run ruff check spark_jobs scripts tests
+	@$(UV) run ruff format --check spark_jobs scripts tests
 	@$(UV) run mypy spark_jobs --ignore-missing-imports
-	-@$(UV) run sqlfluff lint sql --dialect postgres || echo "sqlfluff not installed, skipping postgres lint"
-	-@$(UV) run sqlfluff lint dbt/models --dialect databricks || echo "sqlfluff not installed, skipping databricks lint"
+	@$(UV) run sqlfluff lint sql/oltp_schema --dialect postgres
+	@$(UV) run sqlfluff lint sql/serving_mart --dialect postgres
+	@$(UV) run sqlfluff lint sql/databricks/bronze_tables.sql sql/databricks/schemas.sql --dialect databricks
+	@$(UV) run sqlfluff lint sql/databricks/watermark.sql --dialect postgres
+	@$(UV) run sqlfluff lint dbt/models --dialect databricks
 
 test:
 	@$(UV) run pytest tests -v

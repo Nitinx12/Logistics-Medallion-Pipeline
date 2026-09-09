@@ -17,7 +17,7 @@ WITH ranked AS (
   FROM {{ source('bronze', 'drivers') }}
 )
 SELECT
-  {{ dbt_utils.generate_surrogate_key(['driver_id', 'valid_from']) }} AS driver_sk,
+  md5(concat(driver_id, CAST(valid_from AS STRING))) AS driver_sk,
   driver_id,
   driver_name,
   employment_status,
