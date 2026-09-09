@@ -41,7 +41,9 @@ GOLD_TABLES = [
 def watermark_get(table: str) -> str:
     if WATERMARK_FILE.exists():
         try:
-            return json.loads(WATERMARK_FILE.read_text()).get(f"gold:{table}", "1970-01-01T00:00:00")
+            return json.loads(WATERMARK_FILE.read_text()).get(
+                f"gold:{table}", "1970-01-01T00:00:00"
+            )
         except (json.JSONDecodeError, OSError):
             return "1970-01-01T00:00:00"
     return "1970-01-01T00:00:00"
@@ -87,7 +89,9 @@ def publish(table: str) -> None:
                 logger.info("  %s 0 new rows after watermark %s", table, wm)
                 return
         except Exception as e:  # noqa: BLE001
-            logger.warning("Watermark filter failed for %s: %s, publishing all", table, e)
+            logger.warning(
+                "Watermark filter failed for %s: %s, publishing all", table, e
+            )
 
     # Connect to mart — try freightlake_mart then fallback
     conn = None
@@ -123,12 +127,17 @@ def publish(table: str) -> None:
     cur.execute(f"CREATE TABLE IF NOT EXISTS mart.{table} ({', '.join(cols)})")
     # Add PK if missing for ON CONFLICT
     try:
-        cur.execute(f"ALTER TABLE mart.{table} ADD CONSTRAINT {table}_pkey PRIMARY KEY (\"{pk}\")")
+        cur.execute(
+            f'ALTER TABLE mart.{table} ADD CONSTRAINT {table}_pkey PRIMARY KEY ("{pk}")'
+        )
     except Exception:  # noqa: BLE001, S110
         pass
     # Full refresh for now — TRUNCATE then INSERT is idempotent and avoids PK issues
     cur.execute(f"TRUNCATE mart.{table}")
-    rows = [tuple(None if pd.isna(x) else x for x in row) for row in df.itertuples(index=False)]
+    rows = [
+        tuple(None if pd.isna(x) else x for x in row)
+        for row in df.itertuples(index=False)
+    ]
     if rows:
         cols_str = ",".join([f'"{c}"' for c in df.columns])
         psycopg2.extras.execute_values(
