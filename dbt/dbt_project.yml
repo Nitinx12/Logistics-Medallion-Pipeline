@@ -1,0 +1,30 @@
+name: freightlake
+version: "0.1.0"
+config-version: 2
+
+profile: freightlake
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+target-path: target
+clean-targets: [target, dbt_packages, logs]
+
+models:
+  freightlake:
+    silver:
+      +materialized: incremental
+      +incremental_strategy: merge
+      +file_format: delta
+    gold:
+      +materialized: table
+      +file_format: delta
+
+snapshots:
+  freightlake:
+    +strategy: timestamp
+    +updated_at: updated_at
+    +target_schema: "{{ env_var('DATABRICKS_SCHEMA_SILVER', 'silver') }}"

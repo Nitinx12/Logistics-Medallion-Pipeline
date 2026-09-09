@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: stg_customers
+    columns:
+      - name: customer_id
+        tests: [not_null, unique]
+      - name: updated_at
+        tests: [not_null]
+
+  - name: stg_drivers
+    columns:
+      - name: driver_id
+        tests: [not_null, unique]
+
+  - name: stg_trucks
+    columns:
+      - name: truck_id
+        tests: [not_null, unique]
+
+  - name: stg_loads
+    columns:
+      - name: load_id
+        tests: [not_null, unique]
+      - name: customer_id
+        tests: [not_null, relationships: {to: ref('stg_customers'), field: customer_id}]
+
+  - name: dim_driver
+    columns:
+      - name: driver_sk
+        tests: [not_null, unique]
+      - name: driver_id
+        tests: [not_null]
