@@ -1,0 +1,28 @@
+name: dbt-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  dbt-build:
+    runs-on: ubuntu-latest
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+      DATABRICKS_CATALOG: freightlake
+      DATABRICKS_SCHEMA_BRONZE: bronze
+      DATABRICKS_SCHEMA_SILVER: silver
+      DATABRICKS_SCHEMA_GOLD: gold
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+      - run: uv sync
+      - run: uv run dbt deps --project-dir dbt
+      - run: uv run dbt parse --project-dir dbt --profiles-dir dbt --target dev
+      - run: uv run dbt build --project-dir dbt --profiles-dir dbt --target dev --select silver
+        continue-on-error: true

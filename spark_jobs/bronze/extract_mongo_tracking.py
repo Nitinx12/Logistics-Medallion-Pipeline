@@ -44,7 +44,7 @@ def extract_collection(name: str) -> None:
         "mongodb://localhost:27017",
     ]:
         try:
-            c = MongoClient(uri, serverSelectionTimeoutMS=2000)
+            c: MongoClient = MongoClient(uri, serverSelectionTimeoutMS=2000)
             c.list_database_names()
             client = c
             break
