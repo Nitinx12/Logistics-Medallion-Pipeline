@@ -259,7 +259,10 @@ def gold():
     # dim_warehouse and dim_route
     if (SILVER / "stg_facilities.parquet").exists():
         df = pd.read_parquet(SILVER / "stg_facilities.parquet")
-        df.rename(columns={"facility_id": "warehouse_id", "facility_name": "warehouse_name"}, inplace=True)
+        df.rename(
+            columns={"facility_id": "warehouse_id", "facility_name": "warehouse_name"},
+            inplace=True,
+        )
         df.to_parquet(GOLD / "dim_warehouse.parquet", index=False)
         print(f"  dim_warehouse {len(df)}")
     if (SILVER / "stg_routes.parquet").exists():
