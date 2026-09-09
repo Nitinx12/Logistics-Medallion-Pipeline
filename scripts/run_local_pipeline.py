@@ -24,7 +24,9 @@ import os
 
 POSTGRES_URL = "postgresql://postgres:admin@localhost:5432/freight_lake"
 POSTGRES_SUPER = "postgresql://postgres:admin@localhost:5432/postgres"
-MART_URL = os.getenv("POSTGRES_MART_URL", "postgresql://postgres:admin@localhost:5432/freightlake_mart")
+MART_URL = os.getenv(
+    "POSTGRES_MART_URL", "postgresql://postgres:admin@localhost:5432/freightlake_mart"
+)
 # if mart db is freightlake_mart but local only has freight_lake, fallback to freight_lake with mart schema
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 MONGO_URI_NOPASS = "mongodb://localhost:27017"
@@ -34,7 +36,17 @@ SILVER = DELTA_ROOT / "silver"
 GOLD = DELTA_ROOT / "gold"
 WATERMARK = pathlib.Path("watermarks.json")
 
-TABLES = ["customers", "drivers", "trucks", "trailers", "facilities", "routes", "loads", "trips", "fuel_purchases"]
+TABLES = [
+    "customers",
+    "drivers",
+    "trucks",
+    "trailers",
+    "facilities",
+    "routes",
+    "loads",
+    "trips",
+    "fuel_purchases",
+]
 MONGO_COLLS = ["delivery_events", "safety_incidents", "maintenance_records"]
 
 
@@ -78,7 +90,11 @@ def ensure_mart():
 def bronze_postgres():
     print("\n=== BRONZE: Postgres OLTP ===")
     BRONZE.mkdir(parents=True, exist_ok=True)
-    conn = pg_connect(POSTGRES_URL if "freight_lake" in POSTGRES_URL else POSTGRES_SUPER.replace("/postgres", "/freight_lake"))
+    conn = pg_connect(
+        POSTGRES_URL
+        if "freight_lake" in POSTGRES_URL
+        else POSTGRES_SUPER.replace("/postgres", "/freight_lake")
+    )
     # fallback try
     try:
         cur = conn.cursor()
@@ -89,7 +105,9 @@ def bronze_postgres():
         wm = watermark_get(f"pg:{tbl}")
         print(f"  {tbl} watermark {wm} -> ", end="")
         try:
-            df = pd.read_sql(f"SELECT * FROM {tbl} WHERE updated_at > %s", conn, params=(wm,))
+            df = pd.read_sql(
+                f"SELECT * FROM {tbl} WHERE updated_at > %s", conn, params=(wm,)
+            )
             if df.empty:
                 print("0 new rows")
                 continue
@@ -125,7 +143,12 @@ def bronze_mongo():
         print(f"  {coll} watermark {wm} -> ", end="")
         try:
             # event_ts or updated_at
-            docs = list(db[coll].find({"$or": [{"event_ts": {"$gt": wm}}, {"updated_at": {"$gt": wm}}]}, {"_id": 0}))
+            docs = list(
+                db[coll].find(
+                    {"$or": [{"event_ts": {"$gt": wm}}, {"updated_at": {"$gt": wm}}]},
+                    {"_id": 0},
+                )
+            )
             if not docs:
                 # fallback all
                 docs = list(db[coll].find({}, {"_id": 0}))
@@ -186,7 +209,9 @@ def silver():
             df = pd.read_parquet(p)
             # trim all string columns to fix join keys (OLTP has padded spaces)
             for col in df.select_dtypes(include=["object"]).columns:
-                df[col] = df[col].astype(str).str.strip().replace({"nan": None, "None": None})
+                df[col] = (
+                    df[col].astype(str).str.strip().replace({"nan": None, "None": None})
+                )
             df = df.drop_duplicates()
             df.to_parquet(SILVER / f"stg_{tbl}.parquet", index=False)
             print(f"  stg_{tbl} {len(df)}")
@@ -202,13 +227,19 @@ def gold():
     GOLD.mkdir(parents=True, exist_ok=True)
     # dim_customer
     if (SILVER / "dim_customer.parquet").exists():
-        pd.read_parquet(SILVER / "dim_customer.parquet").to_parquet(GOLD / "dim_customer.parquet", index=False)
+        pd.read_parquet(SILVER / "dim_customer.parquet").to_parquet(
+            GOLD / "dim_customer.parquet", index=False
+        )
         print("  dim_customer")
     if (SILVER / "dim_driver.parquet").exists():
-        pd.read_parquet(SILVER / "dim_driver.parquet").to_parquet(GOLD / "dim_driver.parquet", index=False)
+        pd.read_parquet(SILVER / "dim_driver.parquet").to_parquet(
+            GOLD / "dim_driver.parquet", index=False
+        )
         print("  dim_driver")
     if (SILVER / "dim_vehicle.parquet").exists():
-        pd.read_parquet(SILVER / "dim_vehicle.parquet").to_parquet(GOLD / "dim_vehicle.parquet", index=False)
+        pd.read_parquet(SILVER / "dim_vehicle.parquet").to_parquet(
+            GOLD / "dim_vehicle.parquet", index=False
+        )
         print("  dim_vehicle")
     # fct_orders from loads
     if (SILVER / "stg_loads.parquet").exists():
@@ -227,7 +258,14 @@ def gold():
         print(f"  fct_deliveries {len(df)}")
     # dim_date
     dates = pd.date_range("2022-01-01", "2026-12-31", freq="D")
-    dim_date = pd.DataFrame({"date": dates, "date_id": dates.strftime("%Y%m%d"), "year": dates.year, "month": dates.month})
+    dim_date = pd.DataFrame(
+        {
+            "date": dates,
+            "date_id": dates.strftime("%Y%m%d"),
+            "year": dates.year,
+            "month": dates.month,
+        }
+    )
     dim_date.to_parquet(GOLD / "dim_date.parquet", index=False)
     print(f"  dim_date {len(dim_date)}")
 
@@ -239,7 +277,15 @@ def publish():
     conn.autocommit = True
     cur = conn.cursor()
     cur.execute("CREATE SCHEMA IF NOT EXISTS mart")
-    for tbl in ["dim_customer", "dim_driver", "dim_vehicle", "fct_orders", "fct_shipments", "fct_deliveries", "dim_date"]:
+    for tbl in [
+        "dim_customer",
+        "dim_driver",
+        "dim_vehicle",
+        "fct_orders",
+        "fct_shipments",
+        "fct_deliveries",
+        "dim_date",
+    ]:
         p = GOLD / f"{tbl}.parquet"
         if not p.exists():
             print(f"  skip {tbl} no file")
@@ -266,9 +312,15 @@ def publish():
         cur.execute(f"CREATE TABLE mart.{tbl} ({', '.join(cols)})")
         # bulk insert via execute_values
         import psycopg2.extras
-        rows = [tuple(None if pd.isna(x) else x for x in row) for row in df.itertuples(index=False)]
+
+        rows = [
+            tuple(None if pd.isna(x) else x for x in row)
+            for row in df.itertuples(index=False)
+        ]
         if rows:
-            psycopg2.extras.execute_values(cur, f"INSERT INTO mart.{tbl} VALUES %s", rows, page_size=5000)
+            psycopg2.extras.execute_values(
+                cur, f"INSERT INTO mart.{tbl} VALUES %s", rows, page_size=5000
+            )
         print(f"  mart.{tbl} {len(df)} rows")
     cur.close()
     conn.close()
@@ -282,8 +334,10 @@ def main():
     silver()
     gold()
     publish()
-    print(f"\nPipeline complete in {time.time()-start:.1f}s")
-    print("Verify: psql freightlake_mart -c 'SELECT tablename FROM pg_tables WHERE schemaname=''mart'''")
+    print(f"\nPipeline complete in {time.time() - start:.1f}s")
+    print(
+        "Verify: psql freightlake_mart -c 'SELECT tablename FROM pg_tables WHERE schemaname=''mart'''"
+    )
     print("Delta local: delta/bronze, delta/silver, delta/gold")
 
 

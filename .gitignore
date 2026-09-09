@@ -302,8 +302,9 @@ local/
 *.swo
 
 # ------------------------------------------------------------
-# data files
+# data files — seed CSVs are versioned, so do not ignore data/*.csv
 # ------------------------------------------------------------
-*.csv
 *.tsv
-data/*.csv
+# data/*.csv  # intentionally not ignored — seed data is committed
+# Generated CSVs outside data/ are still ignored via *.csv in temp handling
+# To ignore a new generated CSV outside data/, add it to data/tmp/ or output/

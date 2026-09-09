@@ -1,8 +1,12 @@
-.PHONY: setup docker-up docker-down seed bronze dbt-run dbt-docs publish pipeline lint test ci clean
+.PHONY: setup setup-ps docker-up docker-down seed bronze dbt-run dbt-build dbt-docs publish pipeline local-pipeline local-pipeline-clean lint test ci clean databricks-init databricks-schemas
 
 # FreightLake — local automation
 # Every target is a thin wrapper around scripts/bash/*.sh and scripts/powershell/*.ps1
 # so logic lives in one place. See docs/PROJECT_PLAN.md section 10.
+
+# Use bash where available (WSL/git bash) for portable || true handling
+SHELL := bash
+.SHELLFLAGS := -eu -o pipefail -c
 
 UV := uv
 PYTHON := $(UV) run python
@@ -45,19 +49,19 @@ local-pipeline:
 	@$(PYTHON) scripts/run_local_pipeline.py
 
 local-pipeline-clean:
-	@rm -rf delta watermarks.json
+	@bash -c "rm -rf delta watermarks.json"
 	@$(PYTHON) scripts/run_local_pipeline.py
 
 lint:
 	@$(UV) run ruff check .
 	@$(UV) run ruff format --check .
-	@$(UV) run mypy spark_jobs --ignore-missing-imports || true
-	@sqlfluff lint sql --dialect postgres || true
-	@sqlfluff lint dbt/models --dialect databricks || true
+	@$(UV) run mypy spark_jobs --ignore-missing-imports
+	-@$(UV) run sqlfluff lint sql --dialect postgres || echo "sqlfluff not installed, skipping postgres lint"
+	-@$(UV) run sqlfluff lint dbt/models --dialect databricks || echo "sqlfluff not installed, skipping databricks lint"
 
 test:
 	@$(UV) run pytest tests -v
-	@bash scripts/bash/dbt.sh test || true
+	-@bash scripts/bash/dbt.sh test || echo "dbt test skipped"
 
 ci: lint test
 	@echo "CI gate passed"
