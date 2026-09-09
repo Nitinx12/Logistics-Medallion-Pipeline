@@ -256,6 +256,16 @@ def gold():
         df = pd.read_parquet(SILVER / "stg_delivery_events.parquet")
         df.to_parquet(GOLD / "fct_deliveries.parquet", index=False)
         print(f"  fct_deliveries {len(df)}")
+    # dim_warehouse and dim_route
+    if (SILVER / "stg_facilities.parquet").exists():
+        df = pd.read_parquet(SILVER / "stg_facilities.parquet")
+        df.rename(columns={"facility_id": "warehouse_id", "facility_name": "warehouse_name"}, inplace=True)
+        df.to_parquet(GOLD / "dim_warehouse.parquet", index=False)
+        print(f"  dim_warehouse {len(df)}")
+    if (SILVER / "stg_routes.parquet").exists():
+        df = pd.read_parquet(SILVER / "stg_routes.parquet")
+        df.to_parquet(GOLD / "dim_route.parquet", index=False)
+        print(f"  dim_route {len(df)}")
     # dim_date
     dates = pd.date_range("2022-01-01", "2026-12-31", freq="D")
     dim_date = pd.DataFrame(
@@ -281,10 +291,12 @@ def publish():
         "dim_customer",
         "dim_driver",
         "dim_vehicle",
+        "dim_warehouse",
+        "dim_route",
+        "dim_date",
         "fct_orders",
         "fct_shipments",
         "fct_deliveries",
-        "dim_date",
     ]:
         p = GOLD / f"{tbl}.parquet"
         if not p.exists():
