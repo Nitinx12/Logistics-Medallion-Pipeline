@@ -12,6 +12,7 @@ default_args = {
     "owner": "freightlake",
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
+    "sla": timedelta(hours=2),  # must finish by 6 AM per PROJECT_PLAN.md:191
 }
 
 with DAG(
@@ -20,17 +21,19 @@ with DAG(
     schedule="0 4 * * *",
     catchup=False,
     default_args=default_args,
-    sla=timedelta(hours=2),
     tags=["freightlake", "bronze"],
+    max_active_runs=1,
 ) as dag:
     extract_postgres = BashOperator(
         task_id="extract_postgres_oltp",
         bash_command="python /opt/airflow/spark_jobs/bronze/extract_postgres_oltp.py",
+        sla=timedelta(hours=2),
     )
 
     extract_mongo = BashOperator(
         task_id="extract_mongo_tracking",
         bash_command="python /opt/airflow/spark_jobs/bronze/extract_mongo_tracking.py",
+        sla=timedelta(hours=2),
     )
 
-    [extract_postgres, extract_mongo]  # noqa: B018
+    [extract_postgres, extract_mongo]  # noqa: B018  # parallel bronze extracts
