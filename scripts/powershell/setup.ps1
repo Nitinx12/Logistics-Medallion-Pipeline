@@ -6,6 +6,12 @@ $ProjectRoot = Find-ProjectRoot $PSScriptRoot
 Set-Location $ProjectRoot
 
 Write-Info "Checking prerequisites"
+# Mirror bash setup.sh uv fallback search (hermes / cargo / Py313)
+$uvFound = $false
+foreach ($p in @("$HOME/AppData/Local/hermes/bin", "$HOME/.cargo/bin", "/mnt/c/Users/$USER/AppData/Local/hermes/bin", "/mnt/c/Users/91852/AppData/Local/hermes/bin", "$HOME/AppData/Local/Programs/Python/Python313/Scripts", "/mnt/c/Users/91852/AppData/Local/Programs/Python/Python313/Scripts")) {
+  if (Test-Path "$p/uv.exe") { $env:PATH = "$p;$env:PATH"; $uvFound = $true; break }
+  if (Test-Path "$p/uv") { $env:PATH = "$p;$env:PATH"; $uvFound = $true; break }
+}
 Assert-Command uv
 Write-Info "uv $(uv --version)"
 

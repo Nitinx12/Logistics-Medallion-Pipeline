@@ -5,11 +5,11 @@ CREATE TABLE IF NOT EXISTS loads (
     route_id VARCHAR(20) REFERENCES routes (route_id),
     load_date DATE,
     load_type VARCHAR(50),
-    weight_lbs DOUBLE PRECISION,
+    weight_lbs BIGINT,
     pieces INT,
     revenue DOUBLE PRECISION,
     fuel_surcharge DOUBLE PRECISION,
-    accessorial_charges DOUBLE PRECISION,
+    accessorial_charges INT,
     load_status VARCHAR(20),
     booking_type VARCHAR(20),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()

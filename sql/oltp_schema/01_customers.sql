@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS customers (
     primary_freight_type VARCHAR(100),
     account_status VARCHAR(20),
     contract_start_date DATE,
-    annual_revenue_potential DOUBLE PRECISION,
+    annual_revenue_potential BIGINT,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_customers_updated_at ON customers (updated_at);
