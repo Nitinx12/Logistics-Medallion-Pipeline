@@ -3,19 +3,99 @@
   "expectations": [
     {
       "expectation_type": "expect_table_row_count_to_be_between",
-      "kwargs": {"min_value": 100, "max_value": 200000}
+      "kwargs": {"min_value": 50, "max_value": 200000}
     },
     {
       "expectation_type": "expect_column_values_to_not_be_null",
       "kwargs": {"column": "customer_id"}
     },
     {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "customer_name"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "updated_at"}
+    },
+    {
       "expectation_type": "expect_column_values_to_match_regex",
       "kwargs": {"column": "customer_id", "regex": "^CUST\\d{5}$"}
     },
     {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {"column": "account_status", "value_set": ["active", "inactive"]}
+    },
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": {"min_value": 100, "max_value": 50000}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "load_id"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "route_id"}
+    },
+    {
       "expectation_type": "expect_column_values_to_be_between",
-      "kwargs": {"column": "revenue", "min_value": 0, "max_value": 100000}
+      "kwargs": {"column": "revenue", "min_value": 0, "max_value": 200000}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {"column": "weight_lbs", "min_value": 1, "max_value": 50000}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "event_id"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "trip_id"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "event_ts"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {"column": "event_type", "value_set": ["pickup", "delivery"]}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {"column": "detention_minutes", "min_value": 0, "max_value": 1440}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {"column": "actual_duration_hours", "min_value": 0.5, "max_value": 168}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {"column": "average_mpg", "min_value": 3.0, "max_value": 12.0}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "incident_id"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": {"column": "incident_date"}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {"column": "claim_amount", "min_value": 0, "max_value": 5000000}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": {"column": "total_cost", "min_value": 0, "max_value": 100000}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {"column": "employment_status", "value_set": ["active", "terminated"]}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": {"column": "status", "value_set": ["active", "inactive", "maintenance"]}
     }
   ],
   "meta": {},

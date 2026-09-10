@@ -9,7 +9,11 @@ from airflow.sensors.external_task import ExternalTaskSensor
 
 from airflow import DAG
 
-default_args = {"owner": "freightlake", "retries": 1, "retry_delay": timedelta(minutes=5)}
+default_args = {
+    "owner": "freightlake",
+    "retries": 1,
+    "retry_delay": timedelta(minutes=5),
+}
 
 with DAG(
     dag_id="freightlake_publish_dag",
