@@ -308,3 +308,5 @@ local/
 # data/*.csv  # intentionally not ignored — seed data is committed
 # Generated CSVs outside data/ are still ignored via *.csv in temp handling
 # To ignore a new generated CSV outside data/, add it to data/tmp/ or output/
+.qwen/
+.sqlfluff

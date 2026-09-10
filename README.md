@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo/freight_lake_logo.png" width="240" alt="FreightLake">
+  <img src="assets/logo/freightlake_logo_transparent.png" width="240" alt="FreightLake">
 </p>
 
 <h1 align="center">FreightLake</h1>
