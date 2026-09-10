@@ -23,6 +23,15 @@ models:
       +materialized: table
       +file_format: delta
 
+# When running with --target local (duckdb) override file_format to none and
+# use table materialization so dbt-duckdb does not try to write Delta files.
+on-run-start:
+  - "{% if target.name == 'local' %}{% do log('Running in local DuckDB mode — bronze sources read from delta/bronze/*.parquet', info=True) %}{% endif %}"
+
+vars:
+  # Used by macros or models that need to know target type at runtime
+  is_local_target: "{{ target.name == 'local' }}"
+
 snapshots:
   freightlake:
     +strategy: timestamp

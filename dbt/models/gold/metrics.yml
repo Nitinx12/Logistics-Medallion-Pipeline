@@ -1,25 +1,83 @@
 version: 2
 
+# ---------------------------------------------------------------------------
+# Semantic models + metrics — MetricFlow format (dbt >= 1.6 / dbt-core 1.12).
+# ---------------------------------------------------------------------------
+
+semantic_models:
+  - name: deliveries
+    model: ref('fct_deliveries')
+    entities:
+      - name: delivery
+        type: primary
+        expr: delivery_id
+    dimensions:
+      - name: delivery_ts
+        type: time
+        type_params:
+          time_granularity: day
+      - name: status
+        type: categorical
+    measures:
+      - name: is_on_time
+        agg: average
+        expr: is_on_time
+        agg_time_dimension: delivery_ts
+
+  - name: shipments
+    model: ref('fct_shipments')
+    entities:
+      - name: shipment
+        type: primary
+        expr: shipment_id
+    dimensions:
+      - name: ship_date
+        type: time
+        type_params:
+          time_granularity: day
+    measures:
+      - name: duration_hours
+        agg: average
+        expr: duration_hours
+        agg_time_dimension: ship_date
+
+  - name: orders
+    model: ref('fct_orders')
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+    dimensions:
+      - name: load_date
+        type: time
+        type_params:
+          time_granularity: day
+      - name: route_id
+        type: categorical
+    measures:
+      - name: revenue
+        agg: sum
+        expr: revenue
+        agg_time_dimension: load_date
+
 metrics:
   - name: on_time_delivery_rate
     label: On Time Delivery Rate
-    model: ref('fct_deliveries')
-    calculation_method: average
-    expression: "is_on_time"
-    timestamp: delivery_ts
-    time_grains: [day, week, month]
-    dimensions: [status]
+    description: Average on-time flag across all deliveries (1 = on time, 0 = late).
+    type: simple
+    type_params:
+      measure: is_on_time
 
   - name: avg_delivery_time
     label: Average Delivery Time
-    model: ref('fct_shipments')
-    calculation_method: average
-    expression: duration_hours
-    timestamp: ship_date
+    description: Mean duration in hours from shipment to delivery.
+    type: simple
+    type_params:
+      measure: duration_hours
 
   - name: revenue_per_route
     label: Revenue Per Route
-    model: ref('fct_orders')
-    calculation_method: sum
-    expression: revenue
-    dimensions: [route_id]
+    description: Total revenue summed across all orders, sliceable by route_id.
+    type: simple
+    type_params:
+      measure: revenue

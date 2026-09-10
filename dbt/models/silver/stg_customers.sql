@@ -4,7 +4,8 @@
         incremental_strategy='merge',
         unique_key='customer_id',
         file_format='delta',
-        on_schema_change='sync_all_columns'
+        on_schema_change='sync_all_columns',
+        post_hook="ALTER TABLE {{ this }} SET TBLPROPERTIES ('delta.columnMapping.mode' = 'name', 'delta.minReaderVersion' = '2', 'delta.minWriterVersion' = '5')"
     )
 }}
 
