@@ -8,8 +8,8 @@ authors = [
 ]
 requires-python = ">=3.13"
 dependencies = [
-    "databricks-sdk>=0.137.0",
-    "databricks-sql-connector>=4.5.0",
+    "databricks-sdk>=0.68,<0.118",
+    "databricks-sql-connector>=4.1.1,<4.4.1",
     "pandas>=3.0.5",
     "psycopg2-binary>=2.9.12",
     "pyarrow>=25.0.1",
@@ -27,8 +27,13 @@ build-backend = "uv_build"
 [tool.uv]
 package = false
 
+[tool.sqlfluff.templater.jinja.context.target]
+type = "databricks"
+name = "dev"
+
 [dependency-groups]
 dev = [
+    "dbt-databricks>=1.12.0",
     "dbt-duckdb>=1.11.0",
     "mypy>=2.3.1",
     "pyarrow>=25.0.1",
