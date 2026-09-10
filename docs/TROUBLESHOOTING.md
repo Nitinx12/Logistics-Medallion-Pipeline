@@ -38,7 +38,17 @@ Change `POSTGRES_DOCKER_PORT` in `.env` if 5434 is in use. Update connection str
 Error: sql scope not granted
 ```
 
-**Fix**: Go to the Databricks SQL Warehouse UI and run `sql/databricks/schemas.sql` manually, or use a Personal Access Token with SQL scope. `main.py` automatically falls back to the local Pandas pipeline if dbt fails.
+**Fix**: Go to the Databricks SQL Warehouse UI and run `sql/databricks/schemas.sql` manually, or use a Personal Access Token with SQL scope.
+
+Alternatively, run dbt against the local DuckDB target (no Databricks required):
+
+```bash
+dbt build --target local --project-dir dbt --profiles-dir dbt
+# or run the full pipeline — main.py auto-selects local when DATABRICKS_HOST is not set
+python main.py --skip-docker --target local
+```
+
+> **Note:** When the dbt step fails, `main.py` falls back to `scripts/run_local_pipeline.py` automatically, but this is a degraded path. The pipeline will exit with code **2** (not 0) so CI can distinguish it from a true pass.
 
 ### Token / Host Missing
 
@@ -46,7 +56,7 @@ Error: sql scope not granted
 DATABRICKS_HOST or DATABRICKS_TOKEN is empty
 ```
 
-**Fix**: Fill in `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, and `DATABRICKS_HTTP_PATH` in your `.env`. Copy from `.env.example` as a template.
+**Fix**: Fill in `DATABRICKS_HOST`, `DATABRICKS_TOKEN`, and `DATABRICKS_HTTP_PATH` in your `.env`. Copy from `.env.example` as a template. If you do not have a Databricks workspace, use `--target local` to run dbt via DuckDB instead.
 
 ---
 
@@ -84,13 +94,44 @@ Airflow 3.x requires the `dag-processor` service. It is defined in `docker/compo
 2. Check you are connecting to port **5434** (the mapped port), not 5432
 3. Wait a few seconds after `docker-up` — Postgres has a healthcheck with a `start_period: 10s`
 
-### MongoDB: `MongoServerSelectionError`
+### MongoDB: Authentication Failed
 
-The Mongo extractor tries two URIs: authenticated first, then no-auth. If both fail:
+```
+RuntimeError: MongoDB authentication failed
+```
 
-1. Check the container is up: `docker compose ps freightlake-mongo`
-2. Verify credentials match `.env` values (`MONGO_INITDB_ROOT_USERNAME`, `MONGO_INITDB_ROOT_PASSWORD`)
-3. Try connecting manually: `mongosh "mongodb://root:changeme@localhost:27017/admin"`
+The bronze extractor no longer silently falls back to an unauthenticated connection.
+An auth failure stops the pipeline immediately.
+
+**Checklist:**
+
+1. Check the container is running: `docker compose -f docker/compose.yml ps freightlake-mongo`
+2. Verify `MONGO_INITDB_ROOT_PASSWORD` in `.env` matches the password in `MONGO_URI`.
+   Both must be `changeme` (the compose default).
+3. Test manually: `mongosh "mongodb://root:changeme@localhost:27017/admin"`
+
+**If the volume was initialised with a different password** (e.g. `admin` was set before
+`.env` was created), the password is baked into the volume and `.env` alone cannot fix it.
+The only remedy is to destroy the volume and reinitialise (this deletes all Mongo data):
+
+```bash
+# Stop Mongo and remove the named volume
+docker compose -f docker/compose.yml stop mongo
+docker compose -f docker/compose.yml rm -f mongo
+docker volume rm freightlake_mongo_data
+
+# Bring it back up (it will re-initialise with the password from .env)
+docker compose -f docker/compose.yml up -d mongo
+
+# Re-seed
+make seed
+```
+
+### MongoDB: `MongoServerSelectionError` (unreachable)
+
+1. Check the container is up: `docker compose -f docker/compose.yml ps freightlake-mongo`
+2. Start it if needed: `make docker-up`
+3. Check port: `MONGO_PORT` in `.env` defaults to `27017`.
 
 ---
 

@@ -1,6 +1,9 @@
 freightlake:
   target: dev
   outputs:
+    # -------------------------------------------------------------------------
+    # dev — real Databricks warehouse; used in CI and when credentials are set
+    # -------------------------------------------------------------------------
     dev:
       type: databricks
       catalog: "{{ env_var('DATABRICKS_CATALOG') }}"
@@ -17,3 +20,17 @@ freightlake:
       http_path: "{{ env_var('DATABRICKS_HTTP_PATH') }}"
       token: "{{ env_var('DATABRICKS_TOKEN') }}"
       threads: 8
+    # -------------------------------------------------------------------------
+    # local — DuckDB backed; reads delta/bronze/*.parquet directly.
+    # No Databricks credentials required. Use for local dev and CI without a
+    # live warehouse:
+    #   dbt build --target local --project-dir dbt --profiles-dir dbt
+    # Or let main.py pick it automatically when DATABRICKS_HOST is not set.
+    # -------------------------------------------------------------------------
+    local:
+      type: duckdb
+      path: "delta/freightlake_local.duckdb"
+      threads: 4
+      schema: silver
+      extensions:
+        - parquet

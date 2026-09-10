@@ -36,6 +36,9 @@ Two sources are deliberate. Real logistics has a relational system of record for
 ### Bronze — raw landing
 Jobs `spark_jobs/bronze/extract_postgres_oltp.py` and `extract_mongo_tracking.py` read via watermark table `freightlake.bronze.etl_watermark` and write with `MERGE INTO` upserts keyed on business or event id. Idempotency by construction, partitioned by ingestion date, minimal transform of type casting plus `_loaded_at`. See `sql/databricks/bronze_tables.sql`.
 
+Postgres tables: `customers`, `drivers`, `trucks`, `trailers`, `facilities`, `routes`, `loads`, `trips`, `fuel_purchases`.
+Mongo collections: `delivery_events`, `safety_incidents`, `maintenance_records`.
+
 ### Silver — cleaned and conformed
 dbt models under `dbt/models/silver/` deduplicate and standardize. `dim_driver` and `dim_vehicle` are SCD Type 2 via `dbt snapshot` with `valid_from`, `valid_to`, `is_current`. Tests cover not null, unique, relationships. Great Expectations runs alongside for statistical checks. Schema evolution handled by Delta column mapping.
 
@@ -70,7 +73,9 @@ flowchart TB
         B_CUST[customers] --> B_LOAD[loads]
         B_DRIV[drivers] --> B_TRIP[trips]
         B_TRUCK[trucks] --> B_FUEL[fuel_purchases]
+        B_TRAIL[trailers] --> B_FAC[facilities]
         B_MONGO[delivery_events] --> B_SAFETY[safety_incidents]
+        B_SAFETY --> B_MAINT[maintenance_records]
     end
     subgraph Silver
         S_CUST[stg_customers] --> S_DIMCUST[dim_customer]

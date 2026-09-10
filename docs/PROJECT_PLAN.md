@@ -107,28 +107,35 @@ is far more convincing in an interview than a single flat CSV import.
 
 ## 5. Source systems
 
+> **Note (updated 2026-09-10):** The table and collection names below reflect
+> the actual implementation. They diverged from the original design names during
+> implementation (`warehouses` became `facilities`, `vehicles` became `trucks`
+> and `trailers`, `orders`/`order_items` became `loads`/`trips`, etc.). The
+> architecture and data model are unchanged; only the names differ.
+
 ### 5.1 Postgres OLTP (simulated ERP)
 
 Tables, all with `updated_at` for incremental extraction:
 
 - `customers`
-- `warehouses`
-- `vehicles` (status changes over time — feeds the vehicle SCD Type 2 dimension)
-- `drivers` (region and employment status changes over time — feeds the driver
-  SCD Type 2 dimension)
+- `drivers` (employment status changes over time, feeds the driver SCD Type 2 dimension)
+- `trucks` (status changes over time, feeds the vehicle SCD Type 2 dimension)
+- `trailers`
+- `facilities` (warehouses, cross-docks, and terminals)
 - `routes`
-- `orders`
-- `order_items`
+- `loads` (the freight order, one load per customer shipment)
+- `trips` (the physical movement, one trip per load)
+- `fuel_purchases`
 
 ### 5.2 MongoDB (simulated tracking feed)
 
-Collections, all documents carrying an `event_ts`:
+Collections, all documents carrying an `event_ts` or `updated_at`:
 
-- `tracking_events` — GPS pings and status transitions per shipment, nested
-  location object, variable fields depending on device type (a deliberate
-  schema evolution scenario)
-- `delivery_exceptions` — damage, delay, and failed delivery reports
-- `driver_app_events` — check in and check out events from a driver mobile app
+- `delivery_events` — pickup and delivery confirmation events per load, includes
+  on-time flag and detention minutes
+- `safety_incidents` — accidents, DOT violations, and equipment damage reports
+  linked to trips and drivers
+- `maintenance_records` — truck maintenance history linked to truck and facility
 
 Seed both sources from the same synthetic dataset generator (Python, Faker) so
 row counts and foreign keys line up across systems.

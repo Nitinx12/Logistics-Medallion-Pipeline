@@ -1,21 +1,40 @@
-"""Bronze extract — Mongo tracking feed via watermark incremental."""
+"""Bronze extract — Mongo tracking feed via watermark incremental.
+
+Auth: reads MONGO_URI from the environment (set in .env).  If authentication
+fails the step exits non-zero — there is no silent fallback to an
+unauthenticated connection.  A silent fallback would allow a credential
+mismatch to go undetected for the entire pipeline run.
+"""
 
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 from datetime import UTC, datetime
 
 import pandas as pd
+from dotenv import load_dotenv
 from pymongo import MongoClient
+from pymongo.errors import OperationFailure, ServerSelectionTimeoutError
 
 from spark_jobs.utils.logger import get_logger
 
+load_dotenv()
 logger = get_logger(__name__, "bronze")
 
 COLLECTIONS = ["delivery_events", "safety_incidents", "maintenance_records"]
 BRONZE_DIR = pathlib.Path("delta/bronze")
 WATERMARK_FILE = pathlib.Path("watermarks.json")
+
+# Read from env; fail loudly if not set — no default that could mask a
+# misconfigured environment.
+_MONGO_URI = os.environ.get("MONGO_URI")
+if not _MONGO_URI:
+    raise RuntimeError(
+        "MONGO_URI is not set. "
+        "Copy .env.example to .env and fill in the Mongo credentials."
+    )
 
 
 def watermark_get(coll: str) -> str:
@@ -35,24 +54,34 @@ def watermark_set(coll: str, ts: str) -> None:
     WATERMARK_FILE.write_text(json.dumps(data, indent=2))
 
 
+def _connect() -> MongoClient:
+    """Connect to MongoDB using the configured URI.  Raises on auth failure."""
+    client: MongoClient = MongoClient(_MONGO_URI, serverSelectionTimeoutMS=5000)
+    try:
+        # list_database_names forces authentication; raises OperationFailure on
+        # bad credentials and ServerSelectionTimeoutError when unreachable.
+        client.list_database_names()
+    except OperationFailure as exc:
+        raise RuntimeError(
+            f"MongoDB authentication failed for URI {_MONGO_URI!r}. "
+            "Check MONGO_URI credentials in .env and confirm they match "
+            "MONGO_INITDB_ROOT_USERNAME / MONGO_INITDB_ROOT_PASSWORD used "
+            "when the container volume was first created. "
+            "If the volume was initialised with a different password, run: "
+            "  docker compose -f docker/compose.yml down -v  (data loss!)"
+            "  docker compose -f docker/compose.yml up -d mongo"
+        ) from exc
+    except ServerSelectionTimeoutError as exc:
+        raise RuntimeError(
+            "MongoDB is not reachable. Start the container with: make docker-up"
+        ) from exc
+    return client
+
+
 def extract_collection(name: str) -> None:
     wm = watermark_get(name)
     logger.info("Extracting mongo collection=%s watermark %s", name, wm)
-    client = None
-    for uri in [
-        "mongodb://root:changeme@localhost:27017/freightlake_tracking?authSource=admin",
-        "mongodb://localhost:27017",
-    ]:
-        try:
-            c: MongoClient = MongoClient(uri, serverSelectionTimeoutMS=2000)
-            c.list_database_names()
-            client = c
-            break
-        except Exception:  # noqa: BLE001, S112
-            continue
-    if client is None:
-        logger.warning("Mongo not reachable for %s", name)
-        return
+    client = _connect()
     db = client["freight_lake"]
     # try watermark on event_ts else updated_at
     docs = list(db[name].find({"event_ts": {"$gt": wm}}, {"_id": 0}))
