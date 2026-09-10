@@ -1,132 +1,95 @@
-"""Bronze extract — Mongo tracking feed via watermark incremental.
-
-Auth: reads MONGO_URI from the environment (set in .env).  If authentication
-fails the step exits non-zero — there is no silent fallback to an
-unauthenticated connection.  A silent fallback would allow a credential
-mismatch to go undetected for the entire pipeline run.
-"""
+"""Bronze extract — Mongo tracking feed via PySpark MongoDB connector + MERGE."""
 
 from __future__ import annotations
 
-import json
 import os
-import pathlib
-from datetime import UTC, datetime
 
-import pandas as pd
-from dotenv import load_dotenv
-from pymongo import MongoClient
-from pymongo.errors import OperationFailure, ServerSelectionTimeoutError
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 
+from spark_jobs.utils.connection import mongo_uri
+from spark_jobs.utils.engine import get_spark
 from spark_jobs.utils.logger import get_logger
 
-load_dotenv()
 logger = get_logger(__name__, "bronze")
 
-COLLECTIONS = ["delivery_events", "safety_incidents", "maintenance_records"]
-BRONZE_DIR = pathlib.Path("delta/bronze")
-WATERMARK_FILE = pathlib.Path("watermarks.json")
+CATALOG = os.getenv("DATABRICKS_CATALOG", "freightlake")
+SCHEMA = os.getenv("DATABRICKS_SCHEMA_BRONZE", "bronze")
+PK_MAP: dict[str, str] = {
+    "delivery_events": "event_id",
+    "safety_incidents": "incident_id",
+    "maintenance_records": "maintenance_id",
+}
+WM_COL_MAP: dict[str, str] = {
+    "delivery_events": "event_ts",
+    "safety_incidents": "event_ts",
+    "maintenance_records": "event_ts",
+}
 
-# Read from env; fail loudly if not set — no default that could mask a
-# misconfigured environment.
-_MONGO_URI = os.environ.get("MONGO_URI")
-if not _MONGO_URI:
-    raise RuntimeError(
-        "MONGO_URI is not set. "
-        "Copy .env.example to .env and fill in the Mongo credentials."
+
+def get_watermark(spark: SparkSession, coll: str) -> str:
+    row = spark.sql(f"""
+        SELECT CAST(watermark_ts AS STRING) AS wm
+        FROM {CATALOG}.{SCHEMA}.etl_watermark
+        WHERE source_system='mongo' AND source_table='{coll}'
+    """).first()
+    return str(row["wm"]) if row and row["wm"] else "1970-01-01T00:00:00"
+
+
+def set_watermark(spark: SparkSession, coll: str, ts: str) -> None:
+    spark.sql(f"""
+        MERGE INTO {CATALOG}.{SCHEMA}.etl_watermark AS tgt
+        USING (SELECT 'mongo' AS source_system, '{coll}' AS source_table,
+                      CAST('{ts}' AS TIMESTAMP) AS watermark_ts,
+                      current_timestamp() AS updated_at) AS src
+        ON tgt.source_system = src.source_system
+           AND tgt.source_table = src.source_table
+        WHEN MATCHED THEN UPDATE SET
+            tgt.watermark_ts = src.watermark_ts,
+            tgt.updated_at   = src.updated_at
+        WHEN NOT MATCHED THEN INSERT *
+    """)
+
+
+def extract_collection(spark: SparkSession, coll: str) -> None:
+    pk = PK_MAP[coll]
+    wm_col = WM_COL_MAP[coll]
+    wm = get_watermark(spark, coll)
+    uri = mongo_uri()
+    # db name is last segment before query string
+    db_name = uri.split("/")[-1].split("?")[0]
+    df = (
+        spark.read.format("mongodb")
+        .option("connection.uri", uri)
+        .option("database", db_name)
+        .option("collection", coll)
+        .option("pipeline", f'[{{"$match": {{"{wm_col}": {{"$gt": "{wm}"}}}}}}]')
+        .load()
+        .drop("_id")
     )
-
-
-def watermark_get(coll: str) -> str:
-    if WATERMARK_FILE.exists():
-        try:
-            return json.loads(WATERMARK_FILE.read_text()).get(
-                f"mongo:{coll}", "1970-01-01T00:00:00"
-            )
-        except (json.JSONDecodeError, OSError):
-            return "1970-01-01T00:00:00"
-    return "1970-01-01T00:00:00"
-
-
-def watermark_set(coll: str, ts: str) -> None:
-    data = json.loads(WATERMARK_FILE.read_text()) if WATERMARK_FILE.exists() else {}
-    data[f"mongo:{coll}"] = ts
-    WATERMARK_FILE.write_text(json.dumps(data, indent=2))
-
-
-def _connect() -> MongoClient:
-    """Connect to MongoDB using the configured URI.  Raises on auth failure."""
-    client: MongoClient = MongoClient(_MONGO_URI, serverSelectionTimeoutMS=5000)
-    try:
-        # list_database_names forces authentication; raises OperationFailure on
-        # bad credentials and ServerSelectionTimeoutError when unreachable.
-        client.list_database_names()
-    except OperationFailure as exc:
-        raise RuntimeError(
-            f"MongoDB authentication failed for URI {_MONGO_URI!r}. "
-            "Check MONGO_URI credentials in .env and confirm they match "
-            "MONGO_INITDB_ROOT_USERNAME / MONGO_INITDB_ROOT_PASSWORD used "
-            "when the container volume was first created. "
-            "If the volume was initialised with a different password, run: "
-            "  docker compose -f docker/compose.yml down -v  (data loss!)"
-            "  docker compose -f docker/compose.yml up -d mongo"
-        ) from exc
-    except ServerSelectionTimeoutError as exc:
-        raise RuntimeError(
-            "MongoDB is not reachable. Start the container with: make docker-up"
-        ) from exc
-    return client
-
-
-def extract_collection(name: str) -> None:
-    wm = watermark_get(name)
-    logger.info("Extracting mongo collection=%s watermark %s", name, wm)
-    client = _connect()
-    db = client["freight_lake"]
-    # try watermark on event_ts else updated_at
-    docs = list(db[name].find({"event_ts": {"$gt": wm}}, {"_id": 0}))
-    if not docs:
-        docs = list(db[name].find({"updated_at": {"$gt": wm}}, {"_id": 0}))
-    if not docs:
-        # first run fallback: all docs
-        if not WATERMARK_FILE.exists() or f"mongo:{name}" not in json.loads(
-            WATERMARK_FILE.read_text() if WATERMARK_FILE.exists() else "{}"
-        ):
-            docs = list(db[name].find({}, {"_id": 0}))
-        else:
-            logger.info("  %s 0 new docs", name)
-            client.close()
-            return
-    df = pd.DataFrame(docs)
-    df.columns = [c.strip() for c in df.columns]
-    df["_loaded_at"] = datetime.now(UTC)
-    BRONZE_DIR.mkdir(parents=True, exist_ok=True)
-    out = BRONZE_DIR / f"{name}.parquet"
-    # MERGE on event_id / incident_id / maintenance_id
-    pk = df.columns[0]
-    if out.exists() and not df.empty:
-        existing = pd.read_parquet(out)
-        combined = pd.concat([existing, df], ignore_index=True).drop_duplicates(
-            subset=[pk], keep="last"
-        )
-        combined.to_parquet(out, index=False)
-        logger.info("  %s MERGE %s docs (upsert on %s) -> %s", name, len(df), pk, out)
-    else:
-        df.to_parquet(out, index=False)
-        logger.info("  %s %s docs -> %s", name, len(df), out)
-    if "event_ts" in df.columns:
-        watermark_set(name, str(df["event_ts"].max()))
-    elif "updated_at" in df.columns:
-        watermark_set(name, str(df["updated_at"].max()))
-    client.close()
+    if df.count() == 0:
+        logger.info("  %s 0 docs after watermark %s", coll, wm)
+        return
+    df = df.withColumn("_loaded_at", F.current_timestamp())
+    df.createOrReplaceTempView(f"temp_{coll}")
+    spark.sql(f"""
+        MERGE INTO {CATALOG}.{SCHEMA}.{coll} AS tgt
+        USING temp_{coll} AS src
+        ON tgt.{pk} = src.{pk}
+        WHEN MATCHED THEN UPDATE SET *
+        WHEN NOT MATCHED THEN INSERT *
+    """)
+    max_ts_row = df.agg(F.max(wm_col)).first()
+    max_ts = str(max_ts_row[0]) if max_ts_row and max_ts_row[0] else wm
+    set_watermark(spark, coll, max_ts)
+    logger.info("  %s MERGE %s docs watermark -> %s", coll, df.count(), max_ts)
 
 
 def main() -> None:
-    logger.info("Bronze Mongo extract start collections=%s", COLLECTIONS)
-    BRONZE_DIR.mkdir(parents=True, exist_ok=True)
-    for c in COLLECTIONS:
-        extract_collection(c)
-    logger.info("Bronze Mongo extract complete")
+    spark = get_spark("FreightLake-Bronze-Mongo")
+    for coll in PK_MAP:
+        extract_collection(spark, coll)
+    spark.stop()
 
 
 if __name__ == "__main__":

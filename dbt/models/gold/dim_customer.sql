@@ -15,6 +15,5 @@ select
     contract_start_date,
     annual_revenue_potential,
     credit_terms_days,
-    primary_freight_type,
-    updated_at
+    primary_freight_type
 from {{ ref('stg_customers') }}

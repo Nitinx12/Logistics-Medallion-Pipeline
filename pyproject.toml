@@ -37,6 +37,7 @@ dev = [
     "dbt-duckdb>=1.11.0",
     "mypy>=2.3.1",
     "pyarrow>=25.0.1",
+    "pyspark>=4.2.0",
     "pytest>=9.1.1",
     "pyyaml>=6.0.3",
     "ruff>=0.16.6",

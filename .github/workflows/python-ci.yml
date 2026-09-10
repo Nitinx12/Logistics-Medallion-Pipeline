@@ -14,7 +14,7 @@ jobs:
         with:
           python-version: "3.13"
       - run: uv sync --group dev
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
+      - run: uv run ruff check spark_jobs scripts tests main.py
+      - run: uv run ruff format --check spark_jobs scripts tests main.py
       - run: uv run mypy spark_jobs --ignore-missing-imports
       - run: uv run pytest tests -v

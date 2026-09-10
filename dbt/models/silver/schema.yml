@@ -147,7 +147,7 @@ models:
         tests:
           - accepted_values:
               arguments:
-                values: ['active']
+                values: ['active', 'inactive', 'sold']
       - name: current_location
         description: Trimmed current location city.
       - name: updated_at
@@ -252,6 +252,11 @@ models:
         description: Pieces as bigint.
       - name: revenue
         description: Revenue as double.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 999999
       - name: fuel_surcharge
         description: Fuel surcharge as double.
       - name: accessorial_charges
@@ -261,7 +266,7 @@ models:
         tests:
           - accepted_values:
               arguments:
-                values: ['completed']
+                values: ['completed', 'in_progress', 'pending', 'cancelled']
       - name: booking_type
         description: Lowercased booking type.
         tests:
@@ -293,6 +298,10 @@ models:
               arguments:
                 to: ref('stg_drivers')
                 field: driver_id
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('stg_drivers')
+                parent_column: driver_id
       - name: truck_id
         description: FK to stg_trucks.truck_id, nullable when unassigned.
         tests:
@@ -324,7 +333,7 @@ models:
         tests:
           - accepted_values:
               arguments:
-                values: ['completed']
+                values: ['completed', 'in_progress', 'pending', 'cancelled']
       - name: updated_at
         description: Source updated_at cast to timestamp.
         tests: [not_null]

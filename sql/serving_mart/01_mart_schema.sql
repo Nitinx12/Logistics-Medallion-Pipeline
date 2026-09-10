@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS mart.dim_vehicle (
     vehicle_sk VARCHAR(64) PRIMARY KEY,
     truck_id VARCHAR(20) NOT NULL,
     make VARCHAR(100),
+    model_year BIGINT,
     status VARCHAR(20),
     valid_from TIMESTAMPTZ NOT NULL,
     valid_to TIMESTAMPTZ NOT NULL,
@@ -81,12 +82,13 @@ CREATE TABLE IF NOT EXISTS mart.fct_orders (
     customer_id VARCHAR(20) REFERENCES mart.dim_customer (customer_id),
     route_id VARCHAR(20) REFERENCES mart.dim_route (route_id),
     load_date DATE,
+    date_id INT REFERENCES mart.dim_date(date_id),
     load_type VARCHAR(50),
     weight_lbs BIGINT,
-    pieces INT,
+    pieces BIGINT,
     revenue DOUBLE PRECISION,
     fuel_surcharge DOUBLE PRECISION,
-    accessorial_charges INT,
+    accessorial_charges BIGINT,
     load_status VARCHAR(20),
     booking_type VARCHAR(20),
     updated_at TIMESTAMPTZ
@@ -99,9 +101,10 @@ CREATE TABLE IF NOT EXISTS mart.fct_shipments (
     shipment_id VARCHAR(20) PRIMARY KEY,
     order_id VARCHAR(20) REFERENCES mart.fct_orders (order_id),
     driver_id VARCHAR(20),
-    vehicle_id VARCHAR(20),
+    truck_id VARCHAR(20),
     trailer_id VARCHAR(20),
     ship_date DATE,
+    date_id INT REFERENCES mart.dim_date(date_id),
     distance_miles BIGINT,
     duration_hours DOUBLE PRECISION,
     fuel_gallons_used DOUBLE PRECISION,
@@ -112,7 +115,7 @@ CREATE TABLE IF NOT EXISTS mart.fct_shipments (
 );
 CREATE INDEX IF NOT EXISTS idx_fct_shipments_order ON mart.fct_shipments (order_id);
 CREATE INDEX IF NOT EXISTS idx_fct_shipments_driver ON mart.fct_shipments (driver_id);
-CREATE INDEX IF NOT EXISTS idx_fct_shipments_vehicle ON mart.fct_shipments (vehicle_id);
+CREATE INDEX IF NOT EXISTS idx_fct_shipments_vehicle ON mart.fct_shipments (truck_id);
 
 CREATE TABLE IF NOT EXISTS mart.fct_deliveries (
     delivery_id VARCHAR(20) PRIMARY KEY,
@@ -120,6 +123,7 @@ CREATE TABLE IF NOT EXISTS mart.fct_deliveries (
     shipment_id VARCHAR(20) REFERENCES mart.fct_shipments (shipment_id),
     warehouse_id VARCHAR(20) REFERENCES mart.dim_warehouse (warehouse_id),
     delivery_ts TIMESTAMPTZ,
+    date_id INT REFERENCES mart.dim_date(date_id),
     event_type VARCHAR(50),
     detention_minutes INT,
     is_on_time BOOLEAN,

@@ -22,6 +22,7 @@ with DAG(
     catchup=False,
     default_args=default_args,
     tags=["freightlake", "silver", "gold"],
+    max_active_runs=1,
 ) as dag:
     wait_bronze = ExternalTaskSensor(
         task_id="wait_bronze",
@@ -36,9 +37,14 @@ with DAG(
         bash_command="cd /opt/airflow/dbt && dbt snapshot --profiles-dir . --target dev",
     )
 
+    gx_validate = BashOperator(
+        task_id="gx_validate_silver",
+        bash_command="cd /opt/airflow && uv run python -m great_expectations checkpoint run silver_checkpoint",
+    )
+
     dbt_build = BashOperator(
         task_id="dbt_build",
         bash_command="cd /opt/airflow/dbt && dbt build --profiles-dir . --target dev",
     )
 
-    wait_bronze >> dbt_snapshot >> dbt_build
+    wait_bronze >> dbt_snapshot >> gx_validate >> dbt_build

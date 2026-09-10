@@ -12,7 +12,7 @@
 {% if target.type == 'duckdb' %}
 SELECT * REPLACE (CAST(updated_at AS TIMESTAMP) AS updated_at) FROM {{ source('bronze', 'trucks') }}
 {% else %}
-SELECT * FROM {{ source('bronze', 'trucks') }}
+SELECT * REPLACE (CAST(updated_at AS TIMESTAMP) AS updated_at) FROM {{ source('bronze', 'trucks') }}
 {% endif %}
 
 {% endsnapshot %}
