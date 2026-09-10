@@ -38,10 +38,10 @@ cleaned as (
     select
         truck_id::string                   as truck_id,
         unit_number::bigint                as unit_number,
-        trim(make)                         as make,
+        lower(trim(make))                  as make,
         model_year::bigint                 as model_year,
         upper(trim(vin))                   as vin,
-        to_date(acquisition_date)          as acquisition_date,
+        CAST(acquisition_date AS date)     as acquisition_date,
         acquisition_mileage::bigint        as acquisition_mileage,
         lower(trim(fuel_type))             as fuel_type,
         tank_capacity_gallons::bigint      as tank_capacity_gallons,

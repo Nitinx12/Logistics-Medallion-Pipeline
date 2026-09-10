@@ -42,7 +42,7 @@ cleaned as (
         driver_id::string                   as driver_id,
         truck_id::string                    as truck_id,
         trailer_id::string                  as trailer_id,
-        to_date(dispatch_date)              as dispatch_date,
+        CAST(dispatch_date AS date)         as dispatch_date,
         actual_distance_miles::bigint       as actual_distance_miles,
         actual_duration_hours::double       as actual_duration_hours,
         fuel_gallons_used::double           as fuel_gallons_used,

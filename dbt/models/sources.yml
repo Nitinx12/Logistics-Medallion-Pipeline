@@ -16,41 +16,53 @@ sources:
     schema: "{{ env_var('DATABRICKS_SCHEMA_BRONZE', 'bronze') }}"
     tables:
       - name: customers
-        meta:
-          external_location: "read_parquet('delta/bronze/customers.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/customers.parquet')"
       - name: drivers
-        meta:
-          external_location: "read_parquet('delta/bronze/drivers.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/drivers.parquet')"
       - name: trucks
-        meta:
-          external_location: "read_parquet('delta/bronze/trucks.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/trucks.parquet')"
       - name: trailers
-        meta:
-          external_location: "read_parquet('delta/bronze/trailers.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/trailers.parquet')"
       - name: facilities
-        meta:
-          external_location: "read_parquet('delta/bronze/facilities.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/facilities.parquet')"
       - name: routes
-        meta:
-          external_location: "read_parquet('delta/bronze/routes.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/routes.parquet')"
       - name: loads
-        meta:
-          external_location: "read_parquet('delta/bronze/loads.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/loads.parquet')"
       - name: trips
-        meta:
-          external_location: "read_parquet('delta/bronze/trips.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/trips.parquet')"
       - name: fuel_purchases
-        meta:
-          external_location: "read_parquet('delta/bronze/fuel_purchases.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/fuel_purchases.parquet')"
       - name: delivery_events
-        meta:
-          external_location: "read_parquet('delta/bronze/delivery_events.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/delivery_events.parquet')"
       - name: safety_incidents
-        meta:
-          external_location: "read_parquet('delta/bronze/safety_incidents.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/safety_incidents.parquet')"
       - name: maintenance_records
-        meta:
-          external_location: "read_parquet('delta/bronze/maintenance_records.parquet')"
+        config:
+          meta:
+            external_location: "read_parquet('delta/bronze/maintenance_records.parquet')"
     # freshness: warn_after 24h, error_after 48h on _loaded_at — see ARCHITECTURE.md SLA section
     # dbt source freshness check would be: dbt source freshness --select source:bronze
     # Currently disabled for dbt-fusion parse compatibility; enable when warehouse has sql scope
