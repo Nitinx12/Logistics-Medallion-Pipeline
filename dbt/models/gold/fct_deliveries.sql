@@ -12,6 +12,11 @@ select
   trip_id as shipment_id,
   facility_id as warehouse_id,
   event_ts as delivery_ts,
+{% if target.type == 'duckdb' %}
+  CAST(strftime(CAST(event_ts AS DATE), '%Y%m%d') AS INT) AS date_id,
+{% else %}
+  CAST(date_format(CAST(event_ts AS DATE), 'yyyyMMdd') AS INT) AS date_id,
+{% endif %}
   event_type,
   detention_minutes,
   on_time_flag as is_on_time,

@@ -1,4 +1,4 @@
-.PHONY: setup setup-ps docker-up docker-down seed bronze dbt-run dbt-build dbt-docs publish pipeline local-pipeline local-pipeline-clean lint test ci clean databricks-init databricks-schemas
+.PHONY: setup setup-ps docker-up docker-down seed bronze snapshot dbt-run dbt-build dbt-docs publish pipeline local-pipeline local-pipeline-clean lint test ci clean databricks-init databricks-schemas health health-ps
 
 # FreightLake — local automation
 # Every target is a thin wrapper around scripts/bash/*.sh and scripts/powershell/*.ps1
@@ -27,8 +27,12 @@ seed:
 	@bash scripts/bash/seed_data.sh
 
 bronze:
-	@$(PYTHON) -m spark_jobs.bronze.extract_postgres_oltp
-	@$(PYTHON) -m spark_jobs.bronze.extract_mongo_tracking
+	@$(PYTHON) -m spark_jobs.bronze.extract_postgres_oltp &
+	@$(PYTHON) -m spark_jobs.bronze.extract_mongo_tracking &
+	@wait
+
+snapshot:
+	@bash scripts/bash/dbt.sh snapshot
 
 dbt-run:
 	@bash scripts/bash/dbt.sh run
@@ -75,6 +79,12 @@ ci: lint test
 
 clean:
 	@bash scripts/bash/clean.sh
+
+health:
+	@bash scripts/bash/pipeline_health.sh
+
+health-ps:
+	@powershell -ExecutionPolicy Bypass -File scripts/powershell/pipeline_health.ps1
 
 # Databricks helpers
 databricks-init:

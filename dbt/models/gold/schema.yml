@@ -111,7 +111,9 @@ models:
         description: Natural key trucks.truck_id.
         tests: [not_null]
       - name: make
-        description: Vehicle make.
+        description: Vehicle make lower trimmed.
+      - name: model_year
+        description: Model year as bigint.
       - name: status
         description: Vehicle status.
       - name: valid_from
@@ -145,6 +147,13 @@ models:
               arguments:
                 to: ref('dim_route')
                 field: route_id
+      - name: date_id
+        description: FK to dim_date.date_id derived from load_date.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_id
 
   - name: fct_shipments
     description: Shipments fact from stg_trips, grain trip_id. When joining to dim_driver or dim_vehicle use dispatch date between valid_from and valid_to.
@@ -162,8 +171,20 @@ models:
                 field: order_id
       - name: driver_id
         description: FK to dim_driver.driver_id for SCD2 lookup, nullable.
-      - name: vehicle_id
+      - name: truck_id
         description: FK to dim_vehicle.truck_id for SCD2 lookup, nullable.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_vehicle')
+                field: truck_id
+      - name: date_id
+        description: FK to dim_date.date_id derived from dispatch_date.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_id
 
   - name: fct_deliveries
     description: Delivery events fact from stg_delivery_events, grain event_id.
@@ -192,3 +213,10 @@ models:
               arguments:
                 to: ref('dim_warehouse')
                 field: warehouse_id
+      - name: date_id
+        description: FK to dim_date.date_id derived from event_ts.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_id

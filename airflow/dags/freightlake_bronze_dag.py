@@ -26,13 +26,13 @@ with DAG(
 ) as dag:
     extract_postgres = BashOperator(
         task_id="extract_postgres_oltp",
-        bash_command="python /opt/airflow/spark_jobs/bronze/extract_postgres_oltp.py",
+        bash_command="cd /opt/airflow && python -m spark_jobs.bronze.extract_postgres_oltp",
         sla=timedelta(hours=2),
     )
 
     extract_mongo = BashOperator(
         task_id="extract_mongo_tracking",
-        bash_command="python /opt/airflow/spark_jobs/bronze/extract_mongo_tracking.py",
+        bash_command="cd /opt/airflow && python -m spark_jobs.bronze.extract_mongo_tracking",
         sla=timedelta(hours=2),
     )
 

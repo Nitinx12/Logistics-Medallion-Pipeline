@@ -208,7 +208,6 @@ freightlake/
 ├── AGENTS.md
 ├── README.md
 ├── ARCHITECTURE.md
-├── PROJECT_PLAN.md
 ├── Makefile
 ├── pyproject.toml
 ├── .env.example
@@ -259,6 +258,7 @@ freightlake/
 ├── tests/
 │   └── python/
 └── docs/
+    ├── PROJECT_PLAN.md
     ├── data_dictionary.md
     └── images/
 ```

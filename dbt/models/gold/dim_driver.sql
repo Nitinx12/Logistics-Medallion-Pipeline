@@ -11,7 +11,7 @@ with ranked as (
   select
     trim(driver_id) as driver_id,
     trim(first_name) || ' ' || trim(last_name) as driver_name,
-    trim(employment_status) as employment_status,
+    lower(trim(employment_status)) as employment_status,
     trim(home_terminal) as region,
     dbt_valid_from as valid_from,
     dbt_valid_to as valid_to

@@ -58,9 +58,16 @@ Cleaned, deduplicated, and conformed data. Built by dbt from Bronze.
 |---|---|---|
 | `stg_customers` | `bronze.customers` | `customer_id`, `company_name`, `updated_at` |
 | `stg_drivers` | `bronze.drivers` | `driver_id`, `driver_name`, `updated_at` |
-| `stg_trucks` | `bronze.trucks` | `truck_id`, `make`, `model`, `status`, `updated_at` |
+| `stg_trucks` | `bronze.trucks` | `truck_id`, `make`, `model_year`, `status`, `updated_at` |
+| `stg_trailers` | `bronze.trailers` | `trailer_id`, `trailer_type`, `status`, `updated_at` |
+| `stg_facilities` | `bronze.facilities` | `facility_id`, `facility_name`, `facility_type`, `updated_at` |
+| `stg_routes` | `bronze.routes` | `route_id`, `origin_city`, `destination_city`, `updated_at` |
 | `stg_loads` | `bronze.loads` | `load_id`, `customer_id`, `route_id`, `load_date`, `revenue` |
-| `stg_trips` | `bronze.trips` | `trip_id`, `load_id`, `driver_id`, `truck_id` |
+| `stg_trips` | `bronze.trips` | `trip_id`, `load_id`, `driver_id`, `truck_id`, `trailer_id` |
+| `stg_fuel_purchases` | `bronze.fuel_purchases` | `fuel_purchase_id`, `trip_id`, `truck_id`, `updated_at` |
+| `stg_delivery_events` | `bronze.delivery_events` | `event_id`, `trip_id`, `load_id`, `event_ts`, `updated_at` |
+| `stg_safety_incidents` | `bronze.safety_incidents` | `incident_id`, `trip_id`, `event_ts`, `updated_at` |
+| `stg_maintenance_records` | `bronze.maintenance_records` | `maintenance_id`, `truck_id`, `event_ts`, `updated_at` |
 
 ### SCD Type 2 Dimensions
 
@@ -81,17 +88,17 @@ Star schema built from Silver. Consumed by the Postgres mart and BI tools.
 
 | Model | Grain | Key Columns | Source |
 |---|---|---|---|
-| `fct_orders` | One row per load | `order_id`, `customer_id`, `route_id`, `load_date`, `revenue`, `weight_lbs`, `pieces` | `stg_loads` |
-| `fct_shipments` | One row per trip | `shipment_id`, `load_id`, `driver_id`, `truck_id`, `ship_date`, `duration_hours` | `stg_trips` |
-| `fct_deliveries` | One row per delivery event | `delivery_id`, `event_ts`, `status`, `is_on_time` | `delivery_events` |
+| `fct_orders` | One row per load | `order_id`, `customer_id`, `route_id`, `load_date`, `date_id`, `revenue`, `weight_lbs`, `pieces` (BIGINT), `accessorial_charges` (BIGINT) | `stg_loads` |
+| `fct_shipments` | One row per trip | `shipment_id`, `load_id`, `driver_id`, `truck_id`, `trailer_id`, `ship_date`, `date_id`, `duration_hours` | `stg_trips` |
+| `fct_deliveries` | One row per delivery event | `delivery_id`, `event_ts`, `date_id`, `status`, `is_on_time` | `stg_delivery_events` |
 
 ### Dimension Tables
 
 | Model | Description | Key |
 |---|---|---|
 | `dim_customer` | Customer master (SCD1) | `customer_id` |
-| `dim_driver` | Driver with SCD2 history | `driver_sk` |
-| `dim_vehicle` | Truck/vehicle with SCD2 history | `vehicle_sk` |
+| `dim_driver` | Driver with SCD2 history, `employment_status` via `lower(trim(...))` | `driver_sk` |
+| `dim_vehicle` | Truck/vehicle with SCD2 history, `make` via `lower(trim(...))`, includes `model_year` | `vehicle_sk` |
 | `dim_warehouse` | Facilities (renamed from `facility_id` → `warehouse_id`) | `warehouse_id` |
 | `dim_route` | Origin-destination pairs | `route_id` |
 | `dim_date` | Calendar table 2022-01-01 to 2026-12-31 | `date_id` (YYYYMMDD format) |
@@ -100,7 +107,7 @@ Star schema built from Silver. Consumed by the Postgres mart and BI tools.
 
 ## Serving Mart (`freightlake_mart.mart.*`)
 
-Mirrors the Gold layer in Postgres for fast BI queries. Published by `spark_jobs/publish/publish_gold_to_postgres.py`. Same table names as Gold, schema prefix is `mart`.
+Mirrors the Gold layer in Postgres for fast BI queries. Published by `spark_jobs/publish/publish_gold_to_postgres.py`. Same table names as Gold, schema prefix is `mart`. Mart reflects 0.2.0 changes: `dim_vehicle` includes `model_year`, all facts include `date_id` FK to `dim_date`, `fct_shipments` uses `truck_id` not `vehicle_id`, `fct_orders` `pieces` and `accessorial_charges` are `BIGINT`.
 
 ---
 

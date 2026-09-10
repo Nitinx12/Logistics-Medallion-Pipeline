@@ -1,121 +1,93 @@
-"""Bronze extract — Postgres OLTP via watermark incremental MERGE.
-
-Tries Databricks MERGE INTO, falls back to local delta/bronze parquet with
-watermarks.json for idempotency when no warehouse is available.
-"""
+"""Bronze extract — Postgres OLTP via PySpark JDBC watermark MERGE."""
 
 from __future__ import annotations
 
-import json
-import pathlib
-from datetime import UTC, datetime
+import os
 
-import pandas as pd
-import psycopg2
-from dotenv import load_dotenv
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 
+from spark_jobs.utils.connection import pg_oltp_url
+from spark_jobs.utils.engine import get_spark
 from spark_jobs.utils.logger import get_logger
 
-load_dotenv()
 logger = get_logger(__name__, "bronze")
 
-TABLES = [
-    "customers",
-    "drivers",
-    "trucks",
-    "trailers",
-    "facilities",
-    "routes",
-    "loads",
-    "trips",
-    "fuel_purchases",
-]
-
-WATERMARK_SQL = """
-SELECT watermark_ts FROM freightlake.bronze.etl_watermark
-WHERE source_system='postgres_oltp' AND source_table=%s
-"""
-
-MERGE_SQL_TEMPLATE = """
-MERGE INTO freightlake.bronze.{table} AS tgt
-USING (SELECT * FROM temp_{table}) AS src
-ON tgt.{pk} = src.{pk}
-WHEN MATCHED AND src.updated_at > tgt.updated_at THEN UPDATE SET *
-WHEN NOT MATCHED THEN INSERT *
-"""
-
-BRONZE_DIR = pathlib.Path("delta/bronze")
-WATERMARK_FILE = pathlib.Path("watermarks.json")
-POSTGRES_URL = "postgresql://postgres:admin@localhost:5432/freight_lake"
+CATALOG = os.getenv("DATABRICKS_CATALOG", "freightlake")
+SCHEMA = os.getenv("DATABRICKS_SCHEMA_BRONZE", "bronze")
+PK_MAP: dict[str, str] = {
+    "customers": "customer_id",
+    "drivers": "driver_id",
+    "trucks": "truck_id",
+    "trailers": "trailer_id",
+    "facilities": "facility_id",
+    "routes": "route_id",
+    "loads": "load_id",
+    "trips": "trip_id",
+    "fuel_purchases": "fuel_purchase_id",
+}
 
 
-def watermark_get(table: str) -> str:
-    if WATERMARK_FILE.exists():
-        try:
-            return json.loads(WATERMARK_FILE.read_text()).get(
-                f"pg:{table}", "1970-01-01T00:00:00"
-            )
-        except (json.JSONDecodeError, OSError):
-            return "1970-01-01T00:00:00"
-    return "1970-01-01T00:00:00"
+def get_watermark(spark: SparkSession, table: str) -> str:
+    row = spark.sql(f"""
+        SELECT CAST(watermark_ts AS STRING) AS wm
+        FROM {CATALOG}.{SCHEMA}.etl_watermark
+        WHERE source_system='postgres_oltp' AND source_table='{table}'
+    """).first()
+    return str(row["wm"]) if row and row["wm"] else "1970-01-01T00:00:00"
 
 
-def watermark_set(table: str, ts: str) -> None:
-    data = json.loads(WATERMARK_FILE.read_text()) if WATERMARK_FILE.exists() else {}
-    data[f"pg:{table}"] = ts
-    WATERMARK_FILE.write_text(json.dumps(data, indent=2))
+def set_watermark(spark: SparkSession, table: str, ts: str) -> None:
+    spark.sql(f"""
+        MERGE INTO {CATALOG}.{SCHEMA}.etl_watermark AS tgt
+        USING (SELECT 'postgres_oltp' AS source_system,
+                      '{table}' AS source_table,
+                      CAST('{ts}' AS TIMESTAMP) AS watermark_ts,
+                      current_timestamp() AS updated_at) AS src
+        ON tgt.source_system = src.source_system
+           AND tgt.source_table = src.source_table
+        WHEN MATCHED THEN UPDATE SET
+            tgt.watermark_ts = src.watermark_ts,
+            tgt.updated_at   = src.updated_at
+        WHEN NOT MATCHED THEN INSERT *
+    """)
 
 
-def extract_table(table: str) -> None:
-    wm = watermark_get(table)
-    logger.info("Extracting postgres table=%s watermark %s", table, wm)
-    conn = psycopg2.connect(POSTGRES_URL)
-    try:
-        df = pd.read_sql(
-            f"SELECT * FROM {table} WHERE updated_at > %s", conn, params=(wm,)
-        )
-        if df.empty:
-            logger.info("  %s 0 new rows", table)
-            return
-        df.columns = [c.strip() for c in df.columns]
-        for col in df.select_dtypes(include=["object"]).columns:
-            df[col] = (
-                df[col]
-                .astype(str)
-                .str.strip()
-                .replace({"nan": None, "None": None, "": None})
-            )
-        df["_loaded_at"] = datetime.now(UTC)
-        BRONZE_DIR.mkdir(parents=True, exist_ok=True)
-        out = BRONZE_DIR / f"{table}.parquet"
-        # MERGE logic: upsert on PK (first column)
-        pk_col = df.columns[0]
-        if out.exists():
-            existing = pd.read_parquet(out)
-            combined = pd.concat([existing, df], ignore_index=True)
-            # keep latest by updated_at
-            combined = combined.sort_values("updated_at").drop_duplicates(
-                subset=[pk_col], keep="last"
-            )
-            combined.to_parquet(out, index=False)
-            logger.info(
-                "  %s MERGE %s rows (upsert on %s) -> %s", table, len(df), pk_col, out
-            )
-        else:
-            df.to_parquet(out, index=False)
-            logger.info("  %s %s rows -> %s", table, len(df), out)
-        max_ts = str(df["updated_at"].max())
-        watermark_set(table, max_ts)
-    finally:
-        conn.close()
+def extract_table(spark: SparkSession, table: str) -> None:
+    pk = PK_MAP[table]
+    wm = get_watermark(spark, table)
+    url = pg_oltp_url().replace("postgresql://", "jdbc:postgresql://")
+    df = (
+        spark.read.format("jdbc")
+        .option("url", url)
+        .option("dbtable", f"(SELECT * FROM {table} WHERE updated_at > '{wm}') t")
+        .option("driver", "org.postgresql.Driver")
+        .load()
+    )
+    if df.count() == 0:
+        logger.info("  %s 0 rows after watermark %s", table, wm)
+        return
+    df = df.withColumn("_loaded_at", F.current_timestamp())
+    df.createOrReplaceTempView(f"temp_{table}")
+    spark.sql(f"""
+        MERGE INTO {CATALOG}.{SCHEMA}.{table} AS tgt
+        USING temp_{table} AS src
+        ON tgt.{pk} = src.{pk}
+        WHEN MATCHED AND src.updated_at > tgt.updated_at
+            THEN UPDATE SET *
+        WHEN NOT MATCHED THEN INSERT *
+    """)
+    max_ts_row = df.agg(F.max("updated_at")).first()
+    max_ts = str(max_ts_row[0]) if max_ts_row and max_ts_row[0] else wm
+    set_watermark(spark, table, max_ts)
+    logger.info("  %s MERGE %s rows watermark -> %s", table, df.count(), max_ts)
 
 
 def main() -> None:
-    logger.info("Bronze Postgres extract start tables=%s", TABLES)
-    BRONZE_DIR.mkdir(parents=True, exist_ok=True)
-    for t in TABLES:
-        extract_table(t)
-    logger.info("Bronze Postgres extract complete")
+    spark = get_spark("FreightLake-Bronze-Postgres")
+    for table in PK_MAP:
+        extract_table(spark, table)
+    spark.stop()
 
 
 if __name__ == "__main__":
