@@ -20,7 +20,9 @@ DATA_DIR = pathlib.Path("data")
 # Respect .env and Docker port mapping (host 5434 vs container 5432) — fallback to legacy freight_lake
 POSTGRES_URL = os.getenv(
     "POSTGRES_OLTP_URL",
-    os.getenv("DATABASE_URL", "postgresql://postgres:admin@localhost:5432/freight_lake"),
+    os.getenv(
+        "DATABASE_URL", "postgresql://postgres:admin@localhost:5432/freight_lake"
+    ),
 )
 # Auto-switch to 5434 when host 5432 is occupied by local Postgres (see docker/compose.yml AGENTS.md:158)
 if "localhost:5432/freight_lake" in POSTGRES_URL:
@@ -32,7 +34,9 @@ if "localhost:5432/freight_lake" in POSTGRES_URL:
         _s.connect(("localhost", 5432))
         # if connect succeeds, host 5432 is in use — prefer 5434 for Docker OLTP
         if os.getenv("POSTGRES_DOCKER_PORT"):
-            POSTGRES_URL = POSTGRES_URL.replace("localhost:5432", f"localhost:{os.getenv('POSTGRES_DOCKER_PORT')}")
+            POSTGRES_URL = POSTGRES_URL.replace(
+                "localhost:5432", f"localhost:{os.getenv('POSTGRES_DOCKER_PORT')}"
+            )
     except OSError:
         pass
     finally:
@@ -71,18 +75,18 @@ def pg_seed():
     if not super_url:
         port = os.getenv("POSTGRES_DOCKER_PORT", "55432")
         # prefer 55432 when host 5432 is occupied, else 5432
-        super_url = f"postgresql://{os.getenv('POSTGRES_SUPERUSER','postgres')}:{os.getenv('POSTGRES_SUPERUSER_PASSWORD','admin')}@localhost:{port}/{os.getenv('POSTGRES_OLTP_DB','freightlake_oltp')}"
+        super_url = f"postgresql://{os.getenv('POSTGRES_SUPERUSER', 'postgres')}:{os.getenv('POSTGRES_SUPERUSER_PASSWORD', 'admin')}@localhost:{port}/{os.getenv('POSTGRES_OLTP_DB', 'freightlake_oltp')}"
         # if that fails, try legacy freight_lake on same port
         try:
             test_conn = psycopg2.connect(super_url)
             test_conn.close()
-        except Exception:
+        except psycopg2.OperationalError:
             legacy = super_url.replace("/freightlake_oltp", "/freight_lake")
             try:
                 test_conn = psycopg2.connect(legacy)
                 test_conn.close()
                 super_url = legacy
-            except Exception:
+            except psycopg2.OperationalError:
                 # final fallback to POSTGRES_URL (oltp_user)
                 super_url = POSTGRES_URL
     print(f"  connecting {super_url.split('@')[-1]}")
@@ -101,9 +105,15 @@ def pg_seed():
     # Ensure oltp_user can still write after superuser creates tables
     try:
         oltp_user = os.getenv("POSTGRES_OLTP_USER", "freightlake_oltp_user")
-        cur.execute(f'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "{oltp_user}"')
-        cur.execute(f'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "{oltp_user}"')
-        cur.execute(f'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO "{oltp_user}"')
+        cur.execute(
+            f'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "{oltp_user}"'
+        )
+        cur.execute(
+            f'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "{oltp_user}"'
+        )
+        cur.execute(
+            f'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO "{oltp_user}"'
+        )
     except Exception as e:  # noqa: BLE001
         print(f"  grant to oltp_user skipped: {e}")
     # load CSVs

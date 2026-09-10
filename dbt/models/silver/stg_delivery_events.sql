@@ -11,7 +11,8 @@
 with source as (
 
     select
-        _id,
+        -- _id is excluded by the bronze extractor ({"_id": 0}); select only
+        -- actual columns that land in the parquet file
         event_id,
         trip_id,
         load_id,
@@ -38,7 +39,9 @@ with source as (
 cleaned as (
 
     select
-        _id::string                            as mongo_id,
+        -- mongo_id kept as null so downstream consumers do not break when
+        -- the column is referenced; the extractor excludes _id intentionally
+        null::string                           as mongo_id,
         event_id::string                       as event_id,
         trip_id::string                        as trip_id,
         load_id::string                        as load_id,
