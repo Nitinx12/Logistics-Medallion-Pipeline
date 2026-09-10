@@ -31,9 +31,14 @@ with DAG(
         poke_interval=60,
     )
 
+    dbt_snapshot = BashOperator(
+        task_id="dbt_snapshot",
+        bash_command="cd /opt/airflow/dbt && dbt snapshot --profiles-dir . --target dev",
+    )
+
     dbt_build = BashOperator(
         task_id="dbt_build",
         bash_command="cd /opt/airflow/dbt && dbt build --profiles-dir . --target dev",
     )
 
-    wait_bronze >> dbt_build
+    wait_bronze >> dbt_snapshot >> dbt_build

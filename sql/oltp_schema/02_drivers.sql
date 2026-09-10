@@ -13,3 +13,4 @@ CREATE TABLE IF NOT EXISTS drivers (
     years_experience INT,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_drivers_updated_at ON drivers (updated_at);

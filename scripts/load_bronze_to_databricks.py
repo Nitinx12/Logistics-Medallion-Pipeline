@@ -14,12 +14,11 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import logging
 import math
 import os
 import pathlib
 from typing import Any
-
-import logging
 
 import pandas as pd
 from databricks import sql
@@ -103,9 +102,7 @@ def create_table_from_df(cur: Any, table: str, df: pd.DataFrame, dry_run: bool) 
         cols.append(f"  {col} {sql_type}")
     ddl = (
         f"CREATE TABLE IF NOT EXISTS {CATALOG}.{BRONZE_SCHEMA}.{table}\n"
-        f"(\n"
-        + ",\n".join(cols)
-        + "\n) USING DELTA"
+        f"(\n" + ",\n".join(cols) + "\n) USING DELTA"
     )
     logger.info("DDL for %s:\n%s", table, ddl)
     if not dry_run:
@@ -129,9 +126,7 @@ def load_table(cur: Any, table: str, df: pd.DataFrame, dry_run: bool) -> int:
         for row in chunk.itertuples(index=False, name=None):
             vals = ", ".join(_py_to_sql_literal(v) for v in row)
             row_literals.append(f"({vals})")
-        stmt = (
-            f"INSERT INTO {fqn} ({col_list}) VALUES\n" + ",\n".join(row_literals)
-        )
+        stmt = f"INSERT INTO {fqn} ({col_list}) VALUES\n" + ",\n".join(row_literals)
         if dry_run:
             logger.info(
                 "  [dry-run] %s: would insert rows %d..%d",
@@ -204,9 +199,7 @@ def main() -> None:
     if args.table:
         parquet_files = [p for p in parquet_files if p.stem == args.table]
         if not parquet_files:
-            logger.error(
-                "No parquet file for table=%s in %s", args.table, BRONZE_DIR
-            )
+            logger.error("No parquet file for table=%s in %s", args.table, BRONZE_DIR)
             return
 
     logger.info(

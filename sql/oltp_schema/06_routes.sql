@@ -4,10 +4,10 @@ CREATE TABLE IF NOT EXISTS routes (
     origin_state VARCHAR(10),
     destination_city VARCHAR(100),
     destination_state VARCHAR(10),
-    typical_distance_miles DOUBLE PRECISION,
+    typical_distance_miles INT,
     base_rate_per_mile DOUBLE PRECISION,
     fuel_surcharge_rate DOUBLE PRECISION,
-    typical_transit_days DOUBLE PRECISION,
+    typical_transit_days INT,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_routes_updated_at ON routes (updated_at);

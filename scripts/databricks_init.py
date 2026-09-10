@@ -42,10 +42,14 @@ def via_sql() -> None:
 
 def via_files() -> None:
     print(
-        "SQL scope missing — using file fallback. Run sql/databricks/schemas.sql manually in Databricks UI."
+        "SQL scope missing — using file fallback. Run sql/databricks/schemas.sql and "
+        "sql/databricks/watermark.sql manually in Databricks SQL Warehouse."
     )
-    schema_sql = pathlib.Path("sql/databricks/schemas.sql").read_text()
-    print(schema_sql[:500])
+    for name in ["sql/databricks/schemas.sql", "sql/databricks/watermark.sql", "sql/databricks/bronze_tables.sql"]:
+        p = pathlib.Path(name)
+        if p.exists():
+            print(f"\n-- {name} --")
+            print(p.read_text()[:800])
 
 
 if __name__ == "__main__":

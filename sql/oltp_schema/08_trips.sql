@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS trips (
     truck_id VARCHAR(20) REFERENCES trucks (truck_id),
     trailer_id VARCHAR(20) REFERENCES trailers (trailer_id),
     dispatch_date DATE,
-    actual_distance_miles DOUBLE PRECISION,
+    actual_distance_miles BIGINT,
     actual_duration_hours DOUBLE PRECISION,
     fuel_gallons_used DOUBLE PRECISION,
     average_mpg DOUBLE PRECISION,

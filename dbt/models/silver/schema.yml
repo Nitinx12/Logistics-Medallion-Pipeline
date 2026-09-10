@@ -2,56 +2,534 @@ version: 2
 
 models:
   - name: stg_customers
+    description: Cleaned customers from bronze.customers, deduplicated on customer_id via merge incremental on updated_at.
     columns:
       - name: customer_id
+        description: Natural key from OLTP customers.customer_id.
         tests: [not_null, unique]
+      - name: customer_name
+        description: Trimmed customer name.
+        tests: [not_null]
+      - name: customer_type
+        description: Lowercased contract type.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['contract', 'dedicated', 'spot']
+      - name: credit_terms_days
+        description: Credit terms in days.
+      - name: primary_freight_type
+        description: Lowercased primary freight category.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['automotive', 'consumer goods', 'electronics', 'food/beverage', 'general', 'retail']
+      - name: account_status
+        description: Lowercased active or inactive.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['active', 'inactive']
+      - name: contract_start_date
+        description: Contract start date cast to date.
+      - name: annual_revenue_potential
+        description: Annual revenue potential.
       - name: updated_at
+        description: Source updated_at cast to timestamp, used for incremental watermark.
         tests: [not_null]
 
   - name: stg_drivers
+    description: Cleaned drivers from bronze.drivers, deduped on driver_id.
     columns:
       - name: driver_id
+        description: Natural key drivers.driver_id.
         tests: [not_null, unique]
+      - name: first_name
+        description: Trimmed first name.
+      - name: last_name
+        description: Trimmed last name.
+      - name: hire_date
+        description: Hire date cast to date.
+      - name: termination_date
+        description: Termination date cast to date, nullable.
+      - name: license_number
+        description: Trimmed license number.
+      - name: license_state
+        description: Uppercased state code.
+      - name: date_of_birth
+        description: Date of birth cast to date.
+      - name: home_terminal
+        description: Trimmed home terminal city.
+      - name: employment_status
+        description: Lowercased employment status.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['active', 'terminated']
+      - name: cdl_class
+        description: Uppercased CDL class.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['A']
+      - name: years_experience
+        description: Years experience as bigint.
+      - name: updated_at
+        description: Source updated_at cast to timestamp.
+        tests: [not_null]
 
   - name: stg_trucks
+    description: Cleaned trucks from bronze.trucks, deduped on truck_id.
     columns:
       - name: truck_id
+        description: Natural key trucks.truck_id.
         tests: [not_null, unique]
+      - name: unit_number
+        description: Unit number as bigint.
+      - name: make
+        description: Trimmed make.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['freightliner', 'international', 'kenworth', 'mack', 'peterbilt', 'volvo']
+      - name: model_year
+        description: Model year as bigint.
+      - name: vin
+        description: Uppercased VIN.
+      - name: acquisition_date
+        description: Acquisition date cast to date.
+      - name: acquisition_mileage
+        description: Acquisition mileage as bigint.
+      - name: fuel_type
+        description: Lowercased fuel type.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['diesel']
+      - name: tank_capacity_gallons
+        description: Tank capacity gallons as bigint.
+      - name: status
+        description: Lowercased status.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['active', 'inactive', 'maintenance']
+      - name: home_terminal
+        description: Trimmed home terminal.
+      - name: updated_at
+        description: Source updated_at cast to timestamp.
+        tests: [not_null]
+
+  - name: stg_trailers
+    description: Cleaned trailers from bronze.trailers, deduped on trailer_id.
+    columns:
+      - name: trailer_id
+        description: Natural key trailers.trailer_id.
+        tests: [not_null, unique]
+      - name: trailer_number
+        description: Trailer number as bigint.
+      - name: trailer_type
+        description: Lowercased trailer type.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['dry van', 'refrigerated']
+      - name: length_feet
+        description: Length in feet as bigint.
+      - name: model_year
+        description: Model year as bigint.
+      - name: vin
+        description: Uppercased VIN.
+      - name: acquisition_date
+        description: Acquisition date cast to date.
+      - name: status
+        description: Lowercased status.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['active']
+      - name: current_location
+        description: Trimmed current location city.
+      - name: updated_at
+        description: Source updated_at cast to timestamp.
+        tests: [not_null]
+
+  - name: stg_facilities
+    description: Cleaned facilities from bronze.facilities, deduped on facility_id.
+    columns:
+      - name: facility_id
+        description: Natural key facilities.facility_id.
+        tests: [not_null, unique]
+      - name: facility_name
+        description: Trimmed facility name.
+        tests: [not_null]
+      - name: facility_type
+        description: Lowercased facility type.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['cross-dock', 'distribution center', 'terminal', 'warehouse']
+      - name: city
+        description: Trimmed city.
+      - name: state
+        description: Uppercased state code.
+      - name: latitude
+        description: Latitude as double.
+      - name: longitude
+        description: Longitude as double.
+      - name: dock_doors
+        description: Dock doors as bigint.
+      - name: operating_hours
+        description: Trimmed operating hours.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['24/7', '6AM-10PM', '7AM-7PM', '8AM-5PM']
+      - name: updated_at
+        description: Source updated_at cast to timestamp.
+        tests: [not_null]
+
+  - name: stg_routes
+    description: Cleaned routes from bronze.routes, deduped on route_id.
+    columns:
+      - name: route_id
+        description: Natural key routes.route_id.
+        tests: [not_null, unique]
+      - name: origin_city
+        description: Trimmed origin city.
+      - name: origin_state
+        description: Uppercased origin state code.
+      - name: destination_city
+        description: Trimmed destination city.
+      - name: destination_state
+        description: Uppercased destination state code.
+      - name: typical_distance_miles
+        description: Typical distance miles as bigint.
+      - name: base_rate_per_mile
+        description: Base rate per mile as double.
+      - name: fuel_surcharge_rate
+        description: Fuel surcharge rate as double.
+      - name: typical_transit_days
+        description: Typical transit days as bigint.
+      - name: updated_at
+        description: Source updated_at cast to timestamp.
+        tests: [not_null]
 
   - name: stg_loads
+    description: Cleaned loads from bronze.loads, deduped on load_id. Fact grain table.
     columns:
       - name: load_id
+        description: Natural key loads.load_id.
         tests: [not_null, unique]
       - name: customer_id
+        description: FK to stg_customers.customer_id.
         tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('stg_customers')
                 field: customer_id
-
-  - name: dim_driver
-    columns:
-      - name: driver_sk
-        tests: [not_null, unique]
-      - name: driver_id
+      - name: route_id
+        description: FK to stg_routes.route_id.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_routes')
+                field: route_id
+      - name: load_date
+        description: Load date cast to date.
+        tests: [not_null]
+      - name: load_type
+        description: Lowercased load type.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['dry van', 'refrigerated']
+      - name: weight_lbs
+        description: Weight in lbs as bigint.
+      - name: pieces
+        description: Pieces as bigint.
+      - name: revenue
+        description: Revenue as double.
+      - name: fuel_surcharge
+        description: Fuel surcharge as double.
+      - name: accessorial_charges
+        description: Accessorial charges as bigint.
+      - name: load_status
+        description: Lowercased load status.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['completed']
+      - name: booking_type
+        description: Lowercased booking type.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['contract', 'dedicated', 'spot']
+      - name: updated_at
+        description: Source updated_at cast to timestamp.
         tests: [not_null]
 
   - name: stg_trips
+    description: Cleaned trips from bronze.trips, deduped on trip_id.
     columns:
       - name: trip_id
+        description: Natural key trips.trip_id.
         tests: [not_null, unique]
       - name: load_id
+        description: FK to stg_loads.load_id.
         tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('stg_loads')
                 field: load_id
+      - name: driver_id
+        description: FK to stg_drivers.driver_id, nullable when unassigned.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_drivers')
+                field: driver_id
+      - name: truck_id
+        description: FK to stg_trucks.truck_id, nullable when unassigned.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_trucks')
+                field: truck_id
+      - name: trailer_id
+        description: FK to stg_trailers.trailer_id, nullable when unassigned.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_trailers')
+                field: trailer_id
+      - name: dispatch_date
+        description: Dispatch date cast to date.
+      - name: actual_distance_miles
+        description: Actual distance miles as bigint.
+      - name: actual_duration_hours
+        description: Actual duration hours as double.
+      - name: fuel_gallons_used
+        description: Fuel gallons used as double.
+      - name: average_mpg
+        description: Average mpg as double.
+      - name: idle_time_hours
+        description: Idle time hours as double.
+      - name: trip_status
+        description: Lowercased trip status.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['completed']
+      - name: updated_at
+        description: Source updated_at cast to timestamp.
+        tests: [not_null]
 
-  - name: dim_vehicle
+  - name: stg_fuel_purchases
+    description: Cleaned fuel purchases from bronze.fuel_purchases, deduped on fuel_purchase_id.
     columns:
-      - name: vehicle_sk
+      - name: fuel_purchase_id
+        description: Natural key fuel_purchases.fuel_purchase_id.
+        tests: [not_null, unique]
+      - name: trip_id
+        description: FK to stg_trips.trip_id, nullable.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_trips')
+                field: trip_id
+      - name: truck_id
+        description: FK to stg_trucks.truck_id, nullable.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_trucks')
+                field: truck_id
+      - name: driver_id
+        description: FK to stg_drivers.driver_id, nullable.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_drivers')
+                field: driver_id
+      - name: purchase_date
+        description: Purchase date cast to date.
+      - name: location_city
+        description: Trimmed city.
+      - name: location_state
+        description: Uppercased state code.
+      - name: gallons
+        description: Gallons as double.
+      - name: price_per_gallon
+        description: Price per gallon as double.
+      - name: total_cost
+        description: Total cost as double.
+      - name: fuel_card_number
+        description: Trimmed fuel card number.
+      - name: updated_at
+        description: Source updated_at cast to timestamp.
+        tests: [not_null]
+
+  - name: stg_delivery_events
+    description: Cleaned delivery events from bronze.delivery_events, deduped on event_id.
+    columns:
+      - name: mongo_id
+        description: Mongo _id as string.
+      - name: event_id
+        description: Natural key delivery_events.event_id.
+        tests: [not_null, unique]
+      - name: trip_id
+        description: FK to stg_trips.trip_id.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_trips')
+                field: trip_id
+      - name: load_id
+        description: FK to stg_loads.load_id.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_loads')
+                field: load_id
+      - name: facility_id
+        description: FK to stg_facilities.facility_id.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_facilities')
+                field: facility_id
+      - name: event_type
+        description: Lowercased event type.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['delivery', 'pickup']
+      - name: scheduled_datetime
+        description: Scheduled datetime cast to timestamp.
+      - name: actual_datetime
+        description: Actual datetime cast to timestamp.
+      - name: on_time_flag
+        description: Boolean on time flag.
+      - name: detention_minutes
+        description: Detention minutes as bigint.
+      - name: location_city
+        description: Trimmed city.
+      - name: location_state
+        description: Uppercased state code.
+      - name: event_ts
+        description: Event timestamp cast to timestamp.
+      - name: updated_at
+        description: Source updated_at cast to timestamp.
+        tests: [not_null]
+
+  - name: stg_safety_incidents
+    description: Cleaned safety incidents from bronze.safety_incidents, deduped on incident_id.
+    columns:
+      - name: mongo_id
+        description: Mongo _id as string.
+      - name: incident_id
+        description: Natural key safety_incidents.incident_id.
+        tests: [not_null, unique]
+      - name: trip_id
+        description: FK to stg_trips.trip_id, nullable.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_trips')
+                field: trip_id
+      - name: truck_id
+        description: FK to stg_trucks.truck_id, nullable.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_trucks')
+                field: truck_id
+      - name: driver_id
+        description: FK to stg_drivers.driver_id, nullable.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_drivers')
+                field: driver_id
+      - name: incident_date
+        description: Incident date cast to date.
+      - name: incident_type
+        description: Lowercased incident type.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['accident', 'customer complaint', 'dot violation', 'equipment damage', 'moving violation']
+      - name: description
+        description: Trimmed description.
+      - name: at_fault_flag
+        description: Boolean at fault flag.
+      - name: preventable_flag
+        description: Boolean preventable flag.
+      - name: injury_flag
+        description: Boolean injury flag.
+      - name: location_city
+        description: Trimmed city.
+      - name: location_state
+        description: Uppercased state code.
+      - name: cargo_damage_cost
+        description: Cargo damage cost as double.
+      - name: vehicle_damage_cost
+        description: Vehicle damage cost as double.
+      - name: claim_amount
+        description: Claim amount as double.
+      - name: event_ts
+        description: Event timestamp cast to timestamp.
+      - name: updated_at
+        description: Source updated_at cast to timestamp.
+        tests: [not_null]
+
+  - name: stg_maintenance_records
+    description: Cleaned maintenance records from bronze.maintenance_records, deduped on maintenance_id.
+    columns:
+      - name: mongo_id
+        description: Mongo _id as string.
+      - name: maintenance_id
+        description: Natural key maintenance_records.maintenance_id.
         tests: [not_null, unique]
       - name: truck_id
+        description: FK to stg_trucks.truck_id.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_trucks')
+                field: truck_id
+      - name: maintenance_date
+        description: Maintenance date cast to date.
+      - name: maintenance_type
+        description: Lowercased maintenance type.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['brake', 'engine', 'inspection', 'preventive', 'repair', 'tire', 'transmission']
+      - name: service_description
+        description: Trimmed service description.
+      - name: odometer_reading
+        description: Odometer reading as bigint.
+      - name: downtime_hours
+        description: Downtime hours as double.
+      - name: labor_hours
+        description: Labor hours as double.
+      - name: labor_cost
+        description: Labor cost as double.
+      - name: parts_cost
+        description: Parts cost as double.
+      - name: total_cost
+        description: Total cost as double.
+      - name: facility_location
+        description: Trimmed facility location.
+      - name: event_ts
+        description: Event timestamp cast to timestamp.
+      - name: updated_at
+        description: Source updated_at cast to timestamp.
         tests: [not_null]

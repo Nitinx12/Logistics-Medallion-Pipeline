@@ -17,7 +17,29 @@ from pymongo import MongoClient
 load_dotenv()
 
 DATA_DIR = pathlib.Path("data")
-POSTGRES_URL = "postgresql://postgres:admin@localhost:5432/freight_lake"
+# Respect .env and Docker port mapping (host 5434 vs container 5432) — fallback to legacy freight_lake
+POSTGRES_URL = os.getenv(
+    "POSTGRES_OLTP_URL",
+    os.getenv("DATABASE_URL", "postgresql://postgres:admin@localhost:5432/freight_lake"),
+)
+# Auto-switch to 5434 when host 5432 is occupied by local Postgres (see docker/compose.yml AGENTS.md:158)
+if "localhost:5432/freight_lake" in POSTGRES_URL:
+    import socket as _sock
+
+    _s = _sock.socket()
+    try:
+        _s.settimeout(0.3)
+        _s.connect(("localhost", 5432))
+        # if connect succeeds, host 5432 is in use — prefer 5434 for Docker OLTP
+        if os.getenv("POSTGRES_DOCKER_PORT"):
+            POSTGRES_URL = POSTGRES_URL.replace("localhost:5432", f"localhost:{os.getenv('POSTGRES_DOCKER_PORT')}")
+    except OSError:
+        pass
+    finally:
+        try:
+            _s.close()
+        except OSError:
+            pass
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 MONGO_URI_NOPASS = "mongodb://localhost:27017"
 

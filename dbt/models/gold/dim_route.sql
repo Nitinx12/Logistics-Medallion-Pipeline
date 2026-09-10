@@ -1,11 +1,19 @@
 {{ config(materialized='table') }}
 
-SELECT
-  TRIM(route_id) AS route_id,
-  TRIM(origin_city) AS origin_city,
-  TRIM(origin_state) AS origin_state,
-  TRIM(destination_city) AS destination_city,
-  TRIM(destination_state) AS destination_state,
-  typical_distance_miles::DOUBLE AS distance_miles,
-  base_rate_per_mile::DOUBLE AS rate_per_mile
-FROM {{ source('bronze', 'routes') }}
+/*
+Conformed route dimension, Type 1 for now.
+Sourced from silver stg_routes. If route rates change over time this can be
+promoted to SCD2 via a routes_snapshot, same pattern as dim_driver.
+*/
+
+select
+    route_id,
+    origin_city,
+    origin_state,
+    destination_city,
+    destination_state,
+    typical_distance_miles as distance_miles,
+    base_rate_per_mile as rate_per_mile,
+    fuel_surcharge_rate,
+    typical_transit_days
+from {{ ref('stg_routes') }}

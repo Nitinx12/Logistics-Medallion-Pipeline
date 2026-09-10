@@ -1,7 +1,7 @@
 -- FreightLake OLTP — trucks (vehicles)
 CREATE TABLE IF NOT EXISTS trucks (
     truck_id VARCHAR(20) PRIMARY KEY,
-    unit_number VARCHAR(20),
+    unit_number INT,
     make VARCHAR(100),
     model_year INT,
     vin VARCHAR(50),
