@@ -2,7 +2,7 @@
     config(
         materialized='incremental',
         incremental_strategy='merge',
-        unique_key='truck_id',
+        unique_key='trailer_id',
         file_format='delta',
         on_schema_change='sync_all_columns'
     )
@@ -11,19 +11,17 @@
 with source as (
 
     select
-        truck_id,
-        unit_number,
-        make,
+        trailer_id,
+        trailer_number,
+        trailer_type,
+        length_feet,
         model_year,
         vin,
         acquisition_date,
-        acquisition_mileage,
-        fuel_type,
-        tank_capacity_gallons,
         status,
-        home_terminal,
+        current_location,
         updated_at
-    from {{ source('bronze', 'trucks') }}
+    from {{ source('bronze', 'trailers') }}
 
     {% if is_incremental() %}
     where updated_at::timestamp > (
@@ -36,17 +34,15 @@ with source as (
 cleaned as (
 
     select
-        truck_id::string                   as truck_id,
-        unit_number::bigint                as unit_number,
-        trim(make)                         as make,
+        trailer_id::string                 as trailer_id,
+        trailer_number::bigint              as trailer_number,
+        lower(trim(trailer_type))          as trailer_type,
+        length_feet::bigint                as length_feet,
         model_year::bigint                 as model_year,
         upper(trim(vin))                   as vin,
         to_date(acquisition_date)          as acquisition_date,
-        acquisition_mileage::bigint        as acquisition_mileage,
-        lower(trim(fuel_type))             as fuel_type,
-        tank_capacity_gallons::bigint      as tank_capacity_gallons,
         lower(trim(status))                as status,
-        trim(home_terminal)                as home_terminal,
+        trim(current_location)             as current_location,
         updated_at::timestamp              as updated_at
     from source
 
@@ -59,7 +55,7 @@ deduplicated as (
     select
         *,
         row_number() over (
-            partition by truck_id
+            partition by trailer_id
             order by updated_at desc
         ) as row_num
     from cleaned
@@ -67,17 +63,15 @@ deduplicated as (
 )
 
 select
-    truck_id,
-    unit_number,
-    make,
+    trailer_id,
+    trailer_number,
+    trailer_type,
+    length_feet,
     model_year,
     vin,
     acquisition_date,
-    acquisition_mileage,
-    fuel_type,
-    tank_capacity_gallons,
     status,
-    home_terminal,
+    current_location,
     updated_at
 from deduplicated
 where row_num = 1
