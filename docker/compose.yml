@@ -9,6 +9,11 @@ services:
       POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-changeme}
       POSTGRES_DB: postgres
+      # 02_oltp_schema.sh reads these two directly (not just POSTGRES_USER/PASSWORD,
+      # which are only consumed by the base image's own init). Without them the
+      # GRANT ... TO "$POSTGRES_OLTP_USER" statement builds an empty identifier.
+      POSTGRES_SUPERUSER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_OLTP_USER: ${POSTGRES_OLTP_USER:-freightlake_oltp_user}
     ports:
       # 5434 sits inside Windows Hyper-V excluded range 5433-5532 (netsh show excludedportrange)
       # use 55432 to avoid "socket in a way forbidden" bind error on Windows
@@ -31,11 +36,15 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-root}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-changeme}
     ports:
-      - "${MONGO_PORT:-27017}:27017"
+      - "${MONGO_DOCKER_PORT:-27018}:27017"
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      # Plain `ping` doesn't require auth in Mongo, even once --auth is
+      # enabled, so it reports healthy before the root user is actually
+      # created and the auth-enabled mongod has finished restarting.
+      # Authenticate here so "healthy" reflects real readiness.
+      test: ["CMD", "mongosh", "--quiet", "-u", "${MONGO_INITDB_ROOT_USERNAME:-root}", "-p", "${MONGO_INITDB_ROOT_PASSWORD:-changeme}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       retries: 10
 

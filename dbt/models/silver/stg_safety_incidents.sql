@@ -46,11 +46,11 @@ cleaned as (
         -- mongo_id kept as null so downstream consumers do not break when
         -- the column is referenced; the extractor excludes _id intentionally
         null::string                           as mongo_id,
-        incident_id::string                    as incident_id,
-        trip_id::string                        as trip_id,
-        truck_id::string                       as truck_id,
-        driver_id::string                      as driver_id,
-        to_date(incident_date)                 as incident_date,
+        nullif(trim(incident_id), '')::string  as incident_id,
+        nullif(trim(trip_id), '')::string     as trip_id,
+        nullif(trim(truck_id), '')::string    as truck_id,
+        nullif(trim(driver_id), '')::string   as driver_id,
+        CAST(incident_date AS date)            as incident_date,
         lower(trim(incident_type))             as incident_type,
         trim(description)                      as description,
         -- assumes 'true'/'false' text; recheck source values (see note above)

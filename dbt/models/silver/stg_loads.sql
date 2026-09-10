@@ -40,7 +40,7 @@ cleaned as (
         load_id::string                    as load_id,
         customer_id::string                as customer_id,
         route_id::string                   as route_id,
-        to_date(load_date)                 as load_date,
+        CAST(load_date AS date)            as load_date,
         lower(trim(load_type))             as load_type,
         weight_lbs::bigint                 as weight_lbs,
         pieces::bigint                     as pieces,
