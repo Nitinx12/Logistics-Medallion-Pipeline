@@ -6,7 +6,6 @@ SELECT
   TRIM(trip_id) AS shipment_id,
   event_ts::TIMESTAMP AS delivery_ts,
   TRIM(event_type) AS event_type,
-  TRIM(status) AS status,
   detention_minutes::INT AS detention_minutes,
   on_time_flag::BOOLEAN AS is_on_time
 FROM {{ source('bronze', 'delivery_events') }}
