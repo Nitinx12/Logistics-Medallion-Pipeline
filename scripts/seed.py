@@ -65,8 +65,28 @@ MONGO_MAP = {
 
 def pg_seed():
     print("[seed] Postgres OLTP")
-    # apply DDL first
-    conn = psycopg2.connect(POSTGRES_URL)
+    # Use superuser for DDL + TRUNCATE/COPY so ownership/privilege is not an issue
+    # Fall back to POSTGRES_URL if superuser vars not set
+    super_url = os.getenv("POSTGRES_SUPERUSER_URL")
+    if not super_url:
+        port = os.getenv("POSTGRES_DOCKER_PORT", "55432")
+        # prefer 55432 when host 5432 is occupied, else 5432
+        super_url = f"postgresql://{os.getenv('POSTGRES_SUPERUSER','postgres')}:{os.getenv('POSTGRES_SUPERUSER_PASSWORD','admin')}@localhost:{port}/{os.getenv('POSTGRES_OLTP_DB','freightlake_oltp')}"
+        # if that fails, try legacy freight_lake on same port
+        try:
+            test_conn = psycopg2.connect(super_url)
+            test_conn.close()
+        except Exception:
+            legacy = super_url.replace("/freightlake_oltp", "/freight_lake")
+            try:
+                test_conn = psycopg2.connect(legacy)
+                test_conn.close()
+                super_url = legacy
+            except Exception:
+                # final fallback to POSTGRES_URL (oltp_user)
+                super_url = POSTGRES_URL
+    print(f"  connecting {super_url.split('@')[-1]}")
+    conn = psycopg2.connect(super_url)
     conn.autocommit = True
     cur = conn.cursor()
     for sql_file in sorted(pathlib.Path("sql/oltp_schema").glob("*.sql")):
@@ -78,6 +98,14 @@ def pg_seed():
             print(f"  DDL {sql_file.name} OK")
         except Exception as e:  # noqa: BLE001
             print(f"  DDL {sql_file.name} ERR {e}")
+    # Ensure oltp_user can still write after superuser creates tables
+    try:
+        oltp_user = os.getenv("POSTGRES_OLTP_USER", "freightlake_oltp_user")
+        cur.execute(f'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "{oltp_user}"')
+        cur.execute(f'GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "{oltp_user}"')
+        cur.execute(f'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO "{oltp_user}"')
+    except Exception as e:  # noqa: BLE001
+        print(f"  grant to oltp_user skipped: {e}")
     # load CSVs
     for csv_name, table in PG_MAP.items():
         path = DATA_DIR / csv_name

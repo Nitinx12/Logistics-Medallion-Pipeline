@@ -10,4 +10,11 @@ for f in /tmp/oltp_schema/*.sql; do
   echo "  -> $f"
   psql -v ON_ERROR_STOP=1 --username "$POSTGRES_SUPERUSER" --dbname "freightlake_oltp" -f "$f"
 done
-echo "[freightlake] OLTP schema done"
+# Grant ownership/privileges so seed.py and bronze jobs can truncate/copy as oltp_user
+psql -v ON_ERROR_STOP=1 --username "$POSTGRES_SUPERUSER" --dbname "freightlake_oltp" <<EOSQL
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "$POSTGRES_OLTP_USER";
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "$POSTGRES_OLTP_USER";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO "$POSTGRES_OLTP_USER";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "$POSTGRES_OLTP_USER";
+EOSQL
+echo "[freightlake] OLTP schema done with grants to $POSTGRES_OLTP_USER"
