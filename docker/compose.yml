@@ -10,7 +10,9 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-changeme}
       POSTGRES_DB: postgres
     ports:
-      - "${POSTGRES_DOCKER_PORT:-5434}:5432"
+      # 5434 sits inside Windows Hyper-V excluded range 5433-5532 (netsh show excludedportrange)
+      # use 55432 to avoid "socket in a way forbidden" bind error on Windows
+      - "${POSTGRES_DOCKER_PORT:-55432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ../docker/init:/docker-entrypoint-initdb.d:ro
