@@ -11,7 +11,11 @@ select
   l.customer_id,
   l.route_id,
   l.load_date,
+{% if target.type == 'duckdb' %}
+  CAST(strftime(l.load_date, '%Y%m%d') AS INT) AS date_id,
+{% else %}
   CAST(date_format(l.load_date, 'yyyyMMdd') AS INT) AS date_id,
+{% endif %}
   l.load_type,
   l.revenue,
   l.fuel_surcharge,
