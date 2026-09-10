@@ -11,7 +11,7 @@ select
   l.customer_id,
   l.route_id,
   l.load_date,
-  CAST(date_format(load_date, 'yyyyMMdd') AS INT) AS date_id,
+  CAST(date_format(l.load_date, 'yyyyMMdd') AS INT) AS date_id,
   l.load_type,
   l.revenue,
   l.fuel_surcharge,
