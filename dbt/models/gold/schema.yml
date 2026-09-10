@@ -8,8 +8,9 @@ models:
   # ---------------------------------------------------------------------------
   - name: metricflow_time_spine
     description: Calendar spine table used by MetricFlow for time-series metrics.
-    time_spine:
-      standard_granularity_column: date_day
+    config:
+      time_spine:
+        standard_granularity_column: date_day
     columns:
       - name: date_day
         description: One row per calendar day from 2020-01-01 to 2030-12-31.
