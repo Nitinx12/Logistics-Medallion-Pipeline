@@ -45,7 +45,6 @@ if "localhost:5432/freight_lake" in POSTGRES_URL:
         except OSError:
             pass
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-MONGO_URI_NOPASS = "mongodb://localhost:27017"
 
 # Mapping: CSV -> Postgres table
 PG_MAP = {
@@ -156,19 +155,21 @@ def pg_seed():
 
 def mongo_seed():
     print("[seed] Mongo freight_lake")
-    client = None
-    for uri in [MONGO_URI, MONGO_URI_NOPASS]:
-        try:
-            c = MongoClient(uri, serverSelectionTimeoutMS=2000)
-            c.list_database_names()
-            client = c
-            print(f"  connected {uri}")
-            break
-        except Exception as e:  # noqa: BLE001
-            print(f"  {uri} failed {e}")
-    if client is None:
-        print("  Mongo not reachable, skipping")
-        return
+    try:
+        c = MongoClient(MONGO_URI, serverSelectionTimeoutMS=2000)
+        c.list_database_names()
+        client = c
+        print(f"  connected {MONGO_URI}")
+    except Exception as e:  # noqa: BLE001
+        raise RuntimeError(
+            f"MongoDB authentication failed for {MONGO_URI}. "
+            "Check MONGO_URI credentials in .env and confirm they match "
+            "MONGO_INITDB_ROOT_USERNAME / MONGO_INITDB_ROOT_PASSWORD used "
+            "when the container volume was first created. "
+            "If the volume was initialised with a different password, run: "
+            "  docker compose -f docker/compose.yml down -v  (data loss!)"
+            "  docker compose -f docker/compose.yml up -d mongo"
+        ) from e
     db = client["freight_lake"]
     for csv_name, coll in MONGO_MAP.items():
         path = DATA_DIR / csv_name
