@@ -182,6 +182,14 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 6b. Spark jars
+# ---------------------------------------------------------------------------
+log_info "--- 6b. Spark jars ---"
+check "delta-spark pip installed" bash -c '$UV_CMD run python -c "import delta; print(delta.__version__)" >/dev/null 2>&1'
+check "spark engine has delta/postgres/mongo packages" bash -c 'grep -q "delta-spark" spark_jobs/utils/engine.py && grep -q "org.postgresql:postgresql" spark_jobs/utils/engine.py && grep -q "mongo-spark-connector" spark_jobs/utils/engine.py'
+check_warn "delta jar resolvable" bash -c '$UV_CMD run python -c "from delta import configure_spark_with_delta_pip; import pyspark; b=pyspark.sql.SparkSession.builder; b=configure_spark_with_delta_pip(b); s=b.appName(\"jar-check\").getOrCreate(); s.stop()" >/dev/null 2>&1'
+
+# ---------------------------------------------------------------------------
 # 7. dbt
 # ---------------------------------------------------------------------------
 log_info "--- 7. dbt ---"
