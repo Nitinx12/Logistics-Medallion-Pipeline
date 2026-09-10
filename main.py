@@ -64,7 +64,9 @@ ROOT = find_project_root()
 # STEPS is built dynamically in main() once the dbt target is known.
 
 
-def run_step(name: str, cmd: list[str], dry_run: bool = False) -> tuple[str, float, int]:
+def run_step(
+    name: str, cmd: list[str], dry_run: bool = False
+) -> tuple[str, float, int]:
     start = time.time()
     ts = datetime.now(UTC).isoformat()
     print(f"\n[{ts}] >>> {name}: {' '.join(cmd)}")
@@ -72,7 +74,9 @@ def run_step(name: str, cmd: list[str], dry_run: bool = False) -> tuple[str, flo
         print(f"[{ts}] --- dry-run, skipping execution")
         return ("skipped (dry-run)", 0.0, 0)
     try:
-        result = subprocess.run(cmd, cwd=ROOT, capture_output=False, text=True, check=False)
+        result = subprocess.run(
+            cmd, cwd=ROOT, capture_output=False, text=True, check=False
+        )
         elapsed = time.time() - start
         status = "ok" if result.returncode == 0 else f"failed ({result.returncode})"
         ts2 = datetime.now(UTC).isoformat()
@@ -119,7 +123,11 @@ def main() -> None:
     dbt_target = _resolve_dbt_target(args.target)
 
     STEPS = [
-        ("setup", "Setup checks (uv, python, docker)", ["uv", "run", "python", "--version"]),
+        (
+            "setup",
+            "Setup checks (uv, python, docker)",
+            ["uv", "run", "python", "--version"],
+        ),
         (
             "docker",
             "Docker up (postgres, mongo)",
@@ -172,7 +180,13 @@ def main() -> None:
         (
             "publish",
             "Publish gold to mart",
-            ["uv", "run", "python", "-m", "spark_jobs.publish.publish_gold_to_postgres"],
+            [
+                "uv",
+                "run",
+                "python",
+                "-m",
+                "spark_jobs.publish.publish_gold_to_postgres",
+            ],
         ),
     ]
 
@@ -234,7 +248,9 @@ def main() -> None:
                         f"[{datetime.now(UTC).isoformat()}] "
                         f"<<< dbt-fallback: complete in {elapsed2:.1f}s"
                     )
-                    results.append((name, "WARN: dbt failed (local fallback)", elapsed + elapsed2))
+                    results.append(
+                        (name, "WARN: dbt failed (local fallback)", elapsed + elapsed2)
+                    )
                     used_fallback = True
                     continue
                 except Exception as e:  # noqa: BLE001
@@ -271,7 +287,9 @@ def main() -> None:
     for n, s, d in results:
         print(f"{n:15} {s:35} {d:5.1f}s")
     print("-" * 70)
-    print("Verify: psql freightlake_mart -c 'SELECT tablename FROM pg_tables WHERE schemaname=''mart'''")
+    print(
+        "Verify: psql freightlake_mart -c 'SELECT tablename FROM pg_tables WHERE schemaname=''mart'''"
+    )
     print("Delta: delta/bronze, delta/silver, delta/gold")
     print("=" * 70)
 
