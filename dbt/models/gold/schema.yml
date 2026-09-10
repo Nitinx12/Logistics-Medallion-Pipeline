@@ -1,6 +1,21 @@
 version: 2
 
 models:
+  # ---------------------------------------------------------------------------
+  # MetricFlow time spine — required by dbt Semantic Layer (dbt >= 1.6).
+  # Declares date_day as the standard granularity column so MetricFlow can
+  # resolve time-series aggregations without a separate service.
+  # ---------------------------------------------------------------------------
+  - name: metricflow_time_spine
+    description: Calendar spine table used by MetricFlow for time-series metrics.
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        description: One row per calendar day from 2020-01-01 to 2030-12-31.
+        granularity: day
+        tests: [not_null, unique]
+
   - name: dim_customer
     description: Conformed customer dimension Type 1 from stg_customers.
     columns:

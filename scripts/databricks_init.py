@@ -45,7 +45,11 @@ def via_files() -> None:
         "SQL scope missing — using file fallback. Run sql/databricks/schemas.sql and "
         "sql/databricks/watermark.sql manually in Databricks SQL Warehouse."
     )
-    for name in ["sql/databricks/schemas.sql", "sql/databricks/watermark.sql", "sql/databricks/bronze_tables.sql"]:
+    for name in [
+        "sql/databricks/schemas.sql",
+        "sql/databricks/watermark.sql",
+        "sql/databricks/bronze_tables.sql",
+    ]:
         p = pathlib.Path(name)
         if p.exists():
             print(f"\n-- {name} --")
