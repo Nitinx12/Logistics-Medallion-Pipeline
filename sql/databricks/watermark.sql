@@ -1,32 +1,37 @@
--- FreightLake — watermark helpers (Databricks SQL)
+-- FreightLake — Databricks lakehouse schemas
+-- Run this in Databricks SQL Warehouse or a notebook attached to a cluster.
+-- Requires a token with `sql` scope or OAuth. If you see
+-- `Provided access token does not have required scopes: sql`,
+-- regenerate the token with SQL scope or use Databricks OAuth.
+-- See .env.example and docs/PROJECT_PLAN.md section 9.
 
--- Get current watermark for a source
--- SELECT watermark_ts FROM freightlake.bronze.etl_watermark
--- WHERE source_system = 'postgres_oltp' AND source_table = 'loads';
+-- ---------------------------------------------------------------------------
+-- Unity Catalog path (preferred). On Community Edition or workspace without
+-- Unity Catalog, comment out the CATALOG line and use Hive metastore:
+--   CREATE SCHEMA IF NOT EXISTS bronze;
+-- ---------------------------------------------------------------------------
 
--- Upsert watermark after successful bronze load
--- MERGE INTO freightlake.bronze.etl_watermark AS tgt
--- USING (SELECT 'postgres_oltp' AS source_system, 'loads' AS source_table,
---               max_updated_at::TIMESTAMP AS watermark_ts, now() AS updated_at
---        FROM temp_watermark) AS src
--- ON tgt.source_system = src.source_system AND tgt.source_table = src.source_table
--- WHEN MATCHED THEN UPDATE SET watermark_ts = src.watermark_ts, updated_at = src.updated_at
--- WHEN NOT MATCHED THEN INSERT (source_system, source_table, watermark_ts, updated_at)
---   VALUES (src.source_system, src.source_table, src.watermark_ts, src.updated_at);
+CREATE CATALOG IF NOT EXISTS freightlake
+  COMMENT 'FreightLake logistics medallion lakehouse';
 
--- Seed initial watermarks at epoch so first load pulls everything
-INSERT INTO freightlake.bronze.etl_watermark (source_system, source_table, watermark_ts, updated_at)
-VALUES
-  ('postgres_oltp', 'customers', '1970-01-01 00:00:00', now()),
-  ('postgres_oltp', 'drivers', '1970-01-01 00:00:00', now()),
-  ('postgres_oltp', 'trucks', '1970-01-01 00:00:00', now()),
-  ('postgres_oltp', 'trailers', '1970-01-01 00:00:00', now()),
-  ('postgres_oltp', 'facilities', '1970-01-01 00:00:00', now()),
-  ('postgres_oltp', 'routes', '1970-01-01 00:00:00', now()),
-  ('postgres_oltp', 'loads', '1970-01-01 00:00:00', now()),
-  ('postgres_oltp', 'trips', '1970-01-01 00:00:00', now()),
-  ('postgres_oltp', 'fuel_purchases', '1970-01-01 00:00:00', now()),
-  ('mongo', 'delivery_events', '1970-01-01 00:00:00', now()),
-  ('mongo', 'safety_incidents', '1970-01-01 00:00:00', now()),
-  ('mongo', 'maintenance_records', '1970-01-01 00:00:00', now())
-ON CONFLICT DO NOTHING;
+CREATE SCHEMA IF NOT EXISTS freightlake.bronze
+  COMMENT 'Raw landing, watermark incremental, MERGE INTO upserts, partitioned by ingestion date. See spark_jobs/bronze/';
+CREATE SCHEMA IF NOT EXISTS freightlake.silver
+  COMMENT 'Cleaned, deduped, conformed tables via dbt incremental merge. Snapshots (drivers_snapshot/vehicles_snapshot) also land here. See dbt/models/silver/ and dbt/snapshots/';
+CREATE SCHEMA IF NOT EXISTS freightlake.gold
+  COMMENT 'Star schema: SCD2 dims dim_driver/dim_vehicle + facts fct_orders/fct_shipments/fct_deliveries. See dbt/models/gold/';
+
+-- Audit / watermark table shared by bronze jobs
+CREATE TABLE IF NOT EXISTS freightlake.bronze.etl_watermark (
+  source_system STRING NOT NULL,
+  source_table  STRING NOT NULL,
+  watermark_ts  TIMESTAMP NOT NULL,
+  updated_at  TIMESTAMP NOT NULL
+    COMMENT 'Last successful high watermark per source. Used for incremental extraction.',
+  CONSTRAINT pk_watermark PRIMARY KEY (source_system, source_table)
+)
+COMMENT 'Bronze watermark table for incremental loads';
+
+-- Verify
+SHOW SCHEMAS IN freightlake;
+SHOW TABLES IN freightlake.bronze;

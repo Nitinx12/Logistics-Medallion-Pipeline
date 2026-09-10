@@ -17,9 +17,9 @@ CREATE CATALOG IF NOT EXISTS freightlake
 CREATE SCHEMA IF NOT EXISTS freightlake.bronze
   COMMENT 'Raw landing, watermark incremental, MERGE INTO upserts, partitioned by ingestion date. See spark_jobs/bronze/';
 CREATE SCHEMA IF NOT EXISTS freightlake.silver
-  COMMENT 'Cleaned, deduped, SCD2 dimensions dim_driver/dim_vehicle. See dbt/models/silver/';
+  COMMENT 'Cleaned, deduped, conformed tables via dbt incremental merge. Snapshots (drivers_snapshot/vehicles_snapshot) also land here. See dbt/models/silver/ and dbt/snapshots/';
 CREATE SCHEMA IF NOT EXISTS freightlake.gold
-  COMMENT 'Star schema facts fct_orders/fct_shipments/fct_deliveries + dims. See dbt/models/gold/';
+  COMMENT 'Star schema: SCD2 dims dim_driver/dim_vehicle + facts fct_orders/fct_shipments/fct_deliveries. See dbt/models/gold/';
 
 -- Audit / watermark table shared by bronze jobs
 CREATE TABLE IF NOT EXISTS freightlake.bronze.etl_watermark (
