@@ -45,7 +45,7 @@ cleaned as (
         null::string                           as mongo_id,
         maintenance_id::string                 as maintenance_id,
         truck_id::string                       as truck_id,
-        to_date(maintenance_date)              as maintenance_date,
+        CAST(maintenance_date AS date)         as maintenance_date,
         lower(trim(maintenance_type))          as maintenance_type,
         trim(service_description)              as service_description,
         odometer_reading::bigint               as odometer_reading,

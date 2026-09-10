@@ -40,7 +40,7 @@ cleaned as (
         trip_id::string                    as trip_id,
         truck_id::string                   as truck_id,
         driver_id::string                  as driver_id,
-        to_date(purchase_date)             as purchase_date,
+        CAST(purchase_date AS date)        as purchase_date,
         trim(location_city)                as location_city,
         upper(trim(location_state))        as location_state,
         gallons::double                    as gallons,

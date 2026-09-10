@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import pathlib
+import time
 
 import pandas as pd
 import psycopg2
@@ -66,6 +67,30 @@ MONGO_MAP = {
 }
 
 
+def _wait_for_postgres(dsn: str, timeout: float = 45.0, interval: float = 1.0) -> None:
+    """Poll until Postgres accepts connections or timeout elapses.
+
+    Covers the case where seed.py is run standalone or via `main.py
+    --skip-docker`, where the docker step's `--wait` healthcheck gate never
+    ran. A fresh volume can take 10-30s+ to become ready (initdb, plus crash
+    recovery if an init script errors partway through).
+    """
+    start = time.time()
+    last_err: Exception | None = None
+    while time.time() - start < timeout:
+        try:
+            conn = psycopg2.connect(dsn, connect_timeout=3)
+            conn.close()
+            return
+        except psycopg2.OperationalError as e:
+            last_err = e
+            time.sleep(interval)
+    raise RuntimeError(
+        f"Postgres not ready after {timeout}s: {last_err}. "
+        "Check `docker logs freightlake-postgres` for crash-recovery or init errors."
+    )
+
+
 def pg_seed():
     print("[seed] Postgres OLTP")
     # Use superuser for DDL + TRUNCATE/COPY so ownership/privilege is not an issue
@@ -73,8 +98,22 @@ def pg_seed():
     super_url = os.getenv("POSTGRES_SUPERUSER_URL")
     if not super_url:
         port = os.getenv("POSTGRES_DOCKER_PORT", "55432")
+        superuser = os.getenv("POSTGRES_SUPERUSER", "postgres")
+        superpass = os.getenv("POSTGRES_SUPERUSER_PASSWORD", "admin")
         # prefer 55432 when host 5432 is occupied, else 5432
-        super_url = f"postgresql://{os.getenv('POSTGRES_SUPERUSER', 'postgres')}:{os.getenv('POSTGRES_SUPERUSER_PASSWORD', 'admin')}@localhost:{port}/{os.getenv('POSTGRES_OLTP_DB', 'freightlake_oltp')}"
+        super_url = f"postgresql://{superuser}:{superpass}@localhost:{port}/{os.getenv('POSTGRES_OLTP_DB', 'freightlake_oltp')}"
+
+        # Wait for the *server* to accept connections before probing which
+        # database name to use below. The "postgres" maintenance DB always
+        # exists, so this isolates "server not ready yet" (fresh volume:
+        # initdb, or crash recovery after a broken init script) from "the
+        # freightlake_oltp database doesn't exist" — without this, a slow
+        # start looks identical to the latter and silently falls through to
+        # the legacy DB or the oltp_user fallback below.
+        _wait_for_postgres(
+            f"postgresql://{superuser}:{superpass}@localhost:{port}/postgres"
+        )
+
         # if that fails, try legacy freight_lake on same port
         try:
             test_conn = psycopg2.connect(super_url)
@@ -88,6 +127,8 @@ def pg_seed():
             except psycopg2.OperationalError:
                 # final fallback to POSTGRES_URL (oltp_user)
                 super_url = POSTGRES_URL
+    else:
+        _wait_for_postgres(super_url)
     print(f"  connecting {super_url.split('@')[-1]}")
     conn = psycopg2.connect(super_url)
     conn.autocommit = True
@@ -153,14 +194,36 @@ def pg_seed():
     conn.close()
 
 
+def _wait_for_mongo(uri: str, timeout: float = 45.0, interval: float = 1.0) -> None:
+    """Poll until Mongo authenticates successfully or timeout elapses.
+
+    Mirrors _wait_for_postgres. Belt-and-suspenders alongside the
+    compose.yml healthcheck fix: covers --skip-docker runs, and any future
+    case where 'healthy' is reported slightly ahead of real auth readiness.
+    """
+    start = time.time()
+    last_err: Exception | None = None
+    while time.time() - start < timeout:
+        try:
+            c = MongoClient(uri, serverSelectionTimeoutMS=2000)
+            c.list_database_names()
+            c.close()
+            return
+        except Exception as e:  # noqa: BLE001
+            last_err = e
+            time.sleep(interval)
+    raise RuntimeError(f"MongoDB not ready after {timeout}s: {last_err}")
+
+
 def mongo_seed():
     print("[seed] Mongo freight_lake")
     try:
+        _wait_for_mongo(MONGO_URI)
         c = MongoClient(MONGO_URI, serverSelectionTimeoutMS=2000)
         c.list_database_names()
         client = c
         print(f"  connected {MONGO_URI}")
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         raise RuntimeError(
             f"MongoDB authentication failed for {MONGO_URI}. "
             "Check MONGO_URI credentials in .env and confirm they match "

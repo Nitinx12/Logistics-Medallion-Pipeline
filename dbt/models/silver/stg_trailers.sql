@@ -40,7 +40,7 @@ cleaned as (
         length_feet::bigint                as length_feet,
         model_year::bigint                 as model_year,
         upper(trim(vin))                   as vin,
-        to_date(acquisition_date)          as acquisition_date,
+        CAST(acquisition_date AS date)     as acquisition_date,
         lower(trim(status))                as status,
         trim(current_location)             as current_location,
         updated_at::timestamp              as updated_at

@@ -123,6 +123,11 @@ def main() -> None:
         (
             "docker",
             "Docker up (postgres, mongo)",
+            # --wait blocks until each service's healthcheck reports healthy
+            # (pg_isready / mongosh ping) before this step returns. Without it,
+            # `up -d` returns as soon as the containers start, which races
+            # seed.py against Postgres init/crash-recovery on a fresh volume.
+            # Requires Docker Compose v2.17+.
             [
                 "docker",
                 "compose",
@@ -132,6 +137,7 @@ def main() -> None:
                 "docker/compose.yml",
                 "up",
                 "-d",
+                "--wait",
                 "postgres",
                 "mongo",
             ],
