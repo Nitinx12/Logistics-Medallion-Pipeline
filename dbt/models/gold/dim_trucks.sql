@@ -6,8 +6,8 @@
 
 SELECT
     SHA2(CAST(truck_id AS STRING), 256) AS truck_sk,
-    truck_id,
-    unit_number,
+    CAST(truck_id AS STRING) AS truck_id,
+    CAST(unit_number AS STRING) AS unit_number,
     make,
     model_year,
     vin,
@@ -24,8 +24,8 @@ UNION ALL
 
 SELECT
     SHA2('UNKNOWN', 256) AS truck_sk,
-    CAST(-1 AS BIGINT) AS truck_id,
-    CAST(-1 AS STRING) AS unit_number,
+    'UNKNOWN' AS truck_id,
+    'UNKNOWN' AS unit_number,
     'Freightliner' AS make,
     CAST(NULL AS INT) AS model_year,
     CAST(NULL AS STRING) AS vin,
