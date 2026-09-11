@@ -182,8 +182,7 @@ models:
           - accepted_values:
               arguments:
                 values: ['Diesel']
-      - name: status
-        description: Column renamed to truck_status in model but gold keeps status via alias.
+      - name: truck_status
         tests:
           - accepted_values:
               arguments:
@@ -213,7 +212,7 @@ models:
           - accepted_values:
               arguments:
                 values: ['Dry Van', 'Refrigerated']
-      - name: status
+      - name: trailer_status
         tests:
           - accepted_values:
               arguments:
