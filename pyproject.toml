@@ -29,6 +29,7 @@ package = false
 
 [dependency-groups]
 dev = [
+    "dbt-databricks>=1.10.9",
     "pandas>=3.0.5",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
