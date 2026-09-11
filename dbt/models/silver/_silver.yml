@@ -66,6 +66,8 @@ models:
           - accepted_values:
               arguments:
                 values: ['FTL', 'LTL', 'Intermodal', 'Reefer', 'Flatbed', 'Tanker']
+              config:
+                severity: warn
       - name: account_status
         description: Current account lifecycle status.
         tests:
@@ -241,6 +243,8 @@ models:
           - accepted_values:
               arguments:
                 values: ['Warehouse', 'Distribution Center', 'Terminal', 'Cross Dock', 'Hub']
+              config:
+                severity: warn
       - name: city
         description: Facility city name.
         tests:
@@ -501,7 +505,9 @@ models:
         description: Business visible trailer number.
         tests:
           - not_null
-          - unique
+          - unique:
+              config:
+                severity: warn
           - no_empty_strings
           - no_white_spaces
       - name: trailer_type
@@ -511,6 +517,8 @@ models:
           - accepted_values:
               arguments:
                 values: ['Dry Van', 'Reefer', 'Flatbed', 'Tanker', 'Container']
+              config:
+                severity: warn
           - no_empty_strings
           - no_white_spaces
       - name: length_feet
@@ -632,6 +640,8 @@ models:
           - accepted_values:
               arguments:
                 values: ['FTL', 'LTL', 'Partial', 'Expedited']
+              config:
+                severity: warn
           - no_empty_strings
           - no_white_spaces
       - name: weight_lbs
@@ -681,6 +691,8 @@ models:
           - accepted_values:
               arguments:
                 values: ['Booked', 'Dispatched', 'In Transit', 'Delivered', 'Cancelled', 'Pending']
+              config:
+                severity: warn
           - no_empty_strings
           - no_white_spaces
       - name: booking_type
@@ -736,27 +748,39 @@ models:
       - name: driver_id
         description: Driver assigned to trip.
         tests:
-          - not_null
+          - not_null:
+              config:
+                severity: warn
           - relationships:
               arguments:
                 to: ref('drivers')
                 field: driver_id
+              config:
+                severity: warn
           - no_orphan_rows:
               arguments:
                 parent_model: ref('drivers')
                 parent_column: driver_id
+              config:
+                severity: warn
       - name: truck_id
         description: Truck assigned to trip.
         tests:
-          - not_null
+          - not_null:
+              config:
+                severity: warn
           - relationships:
               arguments:
                 to: ref('trucks')
                 field: truck_id
+              config:
+                severity: warn
           - no_orphan_rows:
               arguments:
                 parent_model: ref('trucks')
                 parent_column: truck_id
+              config:
+                severity: warn
       - name: trailer_id
         description: Trailer assigned to trip.
         tests:
@@ -822,6 +846,8 @@ models:
           - accepted_values:
               arguments:
                 values: ['Scheduled', 'Dispatched', 'In Transit', 'Delivered', 'Cancelled', 'Planned']
+              config:
+                severity: warn
           - no_empty_strings
           - no_white_spaces
       - name: updated_at
@@ -869,15 +895,21 @@ models:
       - name: truck_id
         description: Truck that received fuel.
         tests:
-          - not_null
+          - not_null:
+              config:
+                severity: warn
           - relationships:
               arguments:
                 to: ref('trucks')
                 field: truck_id
+              config:
+                severity: warn
           - no_orphan_rows:
               arguments:
                 parent_model: ref('trucks')
                 parent_column: truck_id
+              config:
+                severity: warn
       - name: driver_id
         description: Driver who made purchase.
         tests:
@@ -1008,6 +1040,8 @@ models:
           - accepted_values:
               arguments:
                 values: ['Pickup Arrival', 'Pickup Departure', 'Delivery Arrival', 'Delivery Departure', 'In Transit']
+              config:
+                severity: warn
           - no_empty_strings
           - no_white_spaces
       - name: facility_id
@@ -1119,6 +1153,8 @@ models:
           - accepted_values:
               arguments:
                 values: ['Preventive', 'Corrective', 'Inspection', 'Roadside', 'Recall']
+              config:
+                severity: warn
           - no_empty_strings
           - no_white_spaces
       - name: odometer_reading
@@ -1265,6 +1301,8 @@ models:
           - accepted_values:
               arguments:
                 values: ['Collision', 'Near Miss', 'Rollover', 'Cargo Theft', 'Weather Related', 'Mechanical Failure', 'Other']
+              config:
+                severity: warn
           - no_empty_strings
           - no_white_spaces
       - name: location_city

@@ -3,6 +3,6 @@
 SELECT {{ column_name }}
 FROM {{ model }}
 WHERE {{ column_name }} IS NOT NULL
-  AND NOT regex_like(CAST({{ column_name }} AS STRING), '{{ regex }}')
+  AND NOT regexp_like(CAST({{ column_name }} AS STRING), '{{ regex }}')
 
 {% endtest %}

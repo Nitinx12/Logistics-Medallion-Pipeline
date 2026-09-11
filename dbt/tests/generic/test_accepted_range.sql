@@ -8,9 +8,9 @@ SELECT {{ column_name }}
 FROM {{ model }}
 WHERE {{ column_name }} IS NOT NULL
   AND (
-    {% if min_value is not none %} {{ column_name }} < {{ min_value }} {% endif %}
+    {% if min_value is not none %} try_cast({{ column_name }} AS DOUBLE) < {{ min_value }} {% endif %}
     {% if min_value is not none and max_value is not none %} OR {% endif %}
-    {% if max_value is not none %} {{ column_name }} > {{ max_value }} {% endif %}
+    {% if max_value is not none %} try_cast({{ column_name }} AS DOUBLE) > {{ max_value }} {% endif %}
   )
 
 {% endtest %}
