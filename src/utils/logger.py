@@ -3,8 +3,8 @@ import os
 from datetime import datetime
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 
-# Base directory for the project
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Base directory for the project - repo root (src/utils -> src -> repo)
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def get_logger(
     name: str = "app", 

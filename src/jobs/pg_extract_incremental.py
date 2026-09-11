@@ -252,10 +252,17 @@ def verify_uc_catalog(spark: SparkSession, catalog_name: str) -> None:
 
 
 def short_error(e: Exception, limit: int = 220) -> str:
-    """First line of an exception, truncated -- keeps the rich summary table readable
+    """Most informative line of an exception, truncated -- keeps the rich summary table readable
     instead of dumping a full JVM stack trace into a table cell. Full details still
     go to the log file via log.exception()."""
-    first_line = str(e).strip().splitlines()[0] if str(e).strip() else type(e).__name__
+    text = str(e).strip()
+    if not text:
+        return type(e).__name__
+    # Prefer the line with the actual API error (403, listSchemas, ApiException) over the generic Py4J header
+    for line in text.splitlines():
+        if "ApiException" in line or "listSchemas" in line or "403" in line or "401" in line or "404" in line:
+            return line.strip()[:limit] + ("…" if len(line.strip()) > limit else "")
+    first_line = text.splitlines()[0].strip()
     return first_line if len(first_line) <= limit else first_line[: limit - 1] + "…"
 
 
