@@ -150,9 +150,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--mode", choices=["append", "merge"], default="append", help="append = bronze-style insert log; merge = upsert on --key-column (single-table mode only)")
     p.add_argument("--key-column", default=None, help="Primary key column, required when --mode merge")
 
-    p.add_argument("--chunk-days", type=float, default=1.0, help="Size of each incremental time window in days (default: 1)")
-    p.add_argument("--fetch-size", type=int, default=10_000, help="JDBC fetchsize per round trip (default: 10000)")
-    p.add_argument("--num-partitions", type=int, default=1, help="Parallel JDBC connections per chunk, partitioned on the watermark column (default: 1)")
+    p.add_argument("--chunk-days", type=float, default=7.0, help="Size of each incremental time window in days (default: 7 for backfill of 10k+ rows, use smaller for near real time)")
+    p.add_argument("--fetch-size", type=int, default=50_000, help="JDBC fetchsize per round trip (default: 50000 for 10k+ rows)")
+    p.add_argument("--num-partitions", type=int, default=4, help="Parallel JDBC connections per chunk, partitioned on the watermark column (default: 4 for 10k+ rows past processing)")
 
     p.add_argument("--since", default=None, help="Override the watermark, ISO format e.g. 2026-01-01T00:00:00")
     p.add_argument("--full", action="store_true", help="Force a full reload, ignoring the existing watermark")
@@ -484,7 +484,9 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
             return "TRUE" if v else "FALSE"
         return str(v)
 
-    # Collect to pandas for type-stable inserts
+    # Past processing: 10k+ rows per run, repartition for bulk, 5k batch per warehouse round trip
+    # Spark 4.2 handles 10k rows easily when coalesced to 4 partitions
+    df = df.repartition(4) if df.rdd.getNumPartitions() < 4 else df
     pdf = df.toPandas()
     if pdf.empty:
         return
@@ -494,22 +496,17 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
     with conn.cursor() as cur:
         # Use USING DELTA without LOCATION -> managed table in UC (allowed via warehouse)
         cur.execute(f"CREATE TABLE IF NOT EXISTS {target_fqtn} ({cols_ddl}) USING DELTA")
-        # For merge, we need to use SQL MERGE via temp view simulated as VALUES
-        # Simpler: pandas iteration with executemany. For append, bulk insert.
+        # Batch size 5000 for 10k+ rows past processing (was 2000)
+        batch_size = 5000
         if mode == "merge" and key_col and key_col in pdf.columns:
-            # Create temp view as VALUES and MERGE
-            # Build VALUES clause in batches to avoid huge SQL
-            for start in range(0, len(pdf), 2000):
-                batch = pdf.iloc[start:start+2000]
-                # Build column list
+            for start in range(0, len(pdf), batch_size):
+                batch = pdf.iloc[start:start+batch_size]
                 cols = ", ".join(f"`{c}`" for c in pdf.columns)
-                # Build rows VALUES
                 rows_sql = []
                 for _, r in batch.iterrows():
                     vals = [_sql_literal(v) for v in r]
                     rows_sql.append("(" + ", ".join(vals) + ")")
                 values_clause = ", ".join(rows_sql)
-                # Use MERGE with inline table
                 merge_sql = f"""
                 MERGE INTO {target_fqtn} AS t
                 USING (SELECT * FROM VALUES {values_clause} AS s({cols})) AS s
@@ -519,10 +516,9 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
                 """
                 cur.execute(merge_sql)
         else:
-            # Append: executemany via single INSERT VALUES batch (2000 rows per round trip)
             cols = ", ".join(f"`{c}`" for c in pdf.columns)
-            for start in range(0, len(pdf), 2000):
-                batch = pdf.iloc[start:start+2000]
+            for start in range(0, len(pdf), batch_size):
+                batch = pdf.iloc[start:start+batch_size]
                 rows_sql = []
                 for _, r in batch.iterrows():
                     vals = [_sql_literal(v) for v in r]

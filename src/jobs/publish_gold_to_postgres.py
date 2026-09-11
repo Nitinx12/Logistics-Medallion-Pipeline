@@ -78,7 +78,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--tables", default=None, help="Comma separated gold tables to publish, default all")
     p.add_argument("--write-mode", choices=["auto", "uc", "local"], default="auto", help="Read gold from UC or local Delta")
     p.add_argument("--local-gold-path", default=getattr(config, "BRONZE_LOCAL_PATH", "./spark-warehouse/bronze").replace("bronze", "gold"), help="Local gold path when write-mode=local")
-    p.add_argument("--jdbc-batch-size", type=int, default=5000, help="JDBC batch size")
+    p.add_argument("--jdbc-batch-size", type=int, default=10000, help="JDBC batch size for fast publish (10000 for 10k+ rows)")
+    p.add_argument("--repartition", type=int, default=4, help="Repartition gold DF before JDBC write for fast publish")
     p.add_argument("--dry-run", action="store_true", help="Count rows and log, write nothing")
     p.add_argument("--demo", action="store_true", help="Use synthetic gold data, no Delta or UC required, for local demo and CI")
     return p.parse_args()
@@ -205,18 +206,26 @@ def read_gold_table(spark: SparkSession, catalog: str, gold_schema: str, table: 
         raise FileNotFoundError(f"UC table not found {catalog}.{gold_schema}.{table}: {e}") from e
 
 
-def publish_table(spark: SparkSession, table: str, catalog: str, gold_schema: str, mart_schema: str, write_mode: str, local_path: str, dry_run: bool, demo: bool = False) -> dict:
+def publish_table(spark: SparkSession, table: str, catalog: str, gold_schema: str, mart_schema: str, write_mode: str, local_path: str, dry_run: bool, demo: bool = False, jdbc_batch_size: int = 10000, repartition: int = 4) -> dict:
     t0 = datetime.now()
     try:
         df = read_gold_table(spark, catalog, gold_schema, table, write_mode, local_path, demo=demo)
+        # Fast publish: repartition for 10k+ rows to parallel JDBC
+        if repartition and df.rdd.getNumPartitions() != repartition:
+            try:
+                df = df.repartition(repartition)
+            except Exception:
+                pass
         count = df.count()
         if dry_run:
             return {"table": table, "rows": count, "status": "dry-run" if not demo else "dry-run (demo)", "elapsed": (datetime.now() - t0).total_seconds()}
+        jdbc_url = postgres_jdbc_url()
+        # Spark JDBC fast options: batchsize 10000, truncate false then overwrite handles 10k+ quickly
+        props = postgres_props()
+        props["batchsize"] = str(jdbc_batch_size)
+        props["truncate"] = "true"
         if demo:
-            # In demo we skip real JDBC write unless postgres is reachable; try but fallback to simulated publish
             try:
-                jdbc_url = postgres_jdbc_url()
-                props = postgres_props()
                 from sqlalchemy import text
 
                 engine = _get_mart_engine()
@@ -232,8 +241,6 @@ def publish_table(spark: SparkSession, table: str, catalog: str, gold_schema: st
                 log.warning(f"Demo mart publish skipped, postgres not reachable for {table}: {e}")
                 return {"table": table, "rows": count, "status": "demo: postgres not reachable, counted only", "elapsed": (datetime.now() - t0).total_seconds()}
         # Ensure mart schema exists in MART DB
-        jdbc_url = postgres_jdbc_url()
-        props = postgres_props()
         try:
             from sqlalchemy import text
 
@@ -273,7 +280,7 @@ def main() -> None:
     results = []
     for tbl in tables:
         console.print(f"Publishing {tbl}...")
-        res = publish_table(spark, tbl, args.catalog, args.gold_schema, args.mart_schema, write_mode, args.local_gold_path, args.dry_run, demo=args.demo)
+        res = publish_table(spark, tbl, args.catalog, args.gold_schema, args.mart_schema, write_mode, args.local_gold_path, args.dry_run, demo=args.demo, jdbc_batch_size=args.jdbc_batch_size, repartition=args.repartition)
         results.append(res)
 
     summary = Table(title="Publish summary PG_MART")

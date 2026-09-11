@@ -96,9 +96,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--no-updated-at-mode", choices=["skip", "overwrite"], default="overwrite", help="What to do with collections lacking watermark field (default: overwrite)")
     p.add_argument("--mode", choices=["append", "merge"], default="append", help="append = bronze insert log; merge = upsert on --key-column (single-collection only)")
     p.add_argument("--key-column", default=None, help="Primary key field, required when --mode merge")
-    p.add_argument("--chunk-days", type=float, default=1.0, help="Size of each incremental time window in days (default: 1)")
-    p.add_argument("--fetch-size", type=int, default=10000, help="Not used for Mongo but kept for parity")
-    p.add_argument("--num-partitions", type=int, default=1, help="Not used for Mongo but kept for parity")
+    p.add_argument("--chunk-days", type=float, default=7.0, help="Size of each incremental time window in days (default: 7 for 10k+ past processing)")
+    p.add_argument("--fetch-size", type=int, default=50000, help="Not used for Mongo but kept for parity (50000 for 10k+ rows)")
+    p.add_argument("--num-partitions", type=int, default=4, help="Not used for Mongo but kept for parity (4 for 10k+ rows)")
     p.add_argument("--since", default=None, help="Override watermark, ISO format e.g. 2026-01-01T00:00:00")
     p.add_argument("--full", action="store_true", help="Force full reload, ignoring watermark")
     p.add_argument("--dry-run", action="store_true", help="Compute chunks and row counts but write nothing")
@@ -344,6 +344,7 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
         if isinstance(v, bool):
             return "TRUE" if v else "FALSE"
         return str(v)
+    df = df.repartition(4) if df.rdd.getNumPartitions() < 4 else df
     pdf = df.toPandas()
     if pdf.empty:
         return
@@ -351,9 +352,10 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
     cols_ddl = ", ".join(f"`{f.name}` {_spark_type_to_sql(f.dataType)}" for f in df.schema.fields)
     with conn.cursor() as cur:
         cur.execute(f"CREATE TABLE IF NOT EXISTS {target_fqtn} ({cols_ddl}) USING DELTA")
+        batch_size = 5000
         if mode == "merge" and key_col and key_col in pdf.columns:
-            for start in range(0, len(pdf), 2000):
-                batch = pdf.iloc[start:start+2000]
+            for start in range(0, len(pdf), batch_size):
+                batch = pdf.iloc[start:start+batch_size]
                 cols = ", ".join(f"`{c}`" for c in pdf.columns)
                 rows_sql = []
                 for _, r in batch.iterrows():
@@ -370,8 +372,8 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
                 cur.execute(merge_sql)
         else:
             cols = ", ".join(f"`{c}`" for c in pdf.columns)
-            for start in range(0, len(pdf), 2000):
-                batch = pdf.iloc[start:start+2000]
+            for start in range(0, len(pdf), batch_size):
+                batch = pdf.iloc[start:start+batch_size]
                 rows_sql = []
                 for _, r in batch.iterrows():
                     vals = [_sql_literal(v) for v in r]
