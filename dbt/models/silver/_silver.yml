@@ -328,6 +328,9 @@ models:
           - not_null
           - no_empty_strings
           - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Kansas City', 'Las Vegas', 'Memphis', 'Miami', 'Minneapolis', 'New York', 'Philadelphia', 'Phoenix', 'Portland', 'Seattle']
       - name: origin_state
         description: Origin state code two letters.
         tests:
@@ -337,12 +340,18 @@ models:
           - matches_regex:
               arguments:
                 regex: '^[A-Z]{2}$'
+          - accepted_values:
+              arguments:
+                values: ['AZ', 'CO', 'FL', 'GA', 'IL', 'MI', 'MN', 'MO', 'NC', 'NV', 'NY', 'OH', 'OR', 'PA', 'TN', 'TX', 'WA']
       - name: destination_city
         description: Destination city name.
         tests:
           - not_null
           - no_empty_strings
           - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Minneapolis', 'New York', 'Philadelphia', 'Portland', 'Seattle']
       - name: destination_state
         description: Destination state code two letters.
         tests:
@@ -352,6 +361,9 @@ models:
           - matches_regex:
               arguments:
                 regex: '^[A-Z]{2}$'
+          - accepted_values:
+              arguments:
+                values: ['CA', 'CO', 'FL', 'GA', 'IL', 'IN', 'MI', 'MN', 'MO', 'NC', 'NV', 'NY', 'OH', 'OR', 'PA', 'TN', 'TX', 'WA']
       - name: typical_distance_miles
         description: Typical distance for route in miles.
         tests:
