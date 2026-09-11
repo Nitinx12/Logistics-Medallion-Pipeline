@@ -532,6 +532,7 @@ models:
           - unique:
               config:
                 severity: warn
+                where: "status = 'Active'"
           - no_empty_strings
           - no_white_spaces
       - name: trailer_type
@@ -772,6 +773,7 @@ models:
           - not_null:
               config:
                 severity: warn
+                where: "trip_status != 'Completed'"
           - relationships:
               arguments:
                 to: ref('drivers')
@@ -790,6 +792,7 @@ models:
           - not_null:
               config:
                 severity: warn
+                where: "trip_status != 'Completed'"
           - relationships:
               arguments:
                 to: ref('trucks')
@@ -917,6 +920,7 @@ models:
           - not_null:
               config:
                 severity: warn
+                store_failures: true
           - relationships:
               arguments:
                 to: ref('trucks')

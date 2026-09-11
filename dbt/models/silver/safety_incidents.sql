@@ -1,7 +1,6 @@
 {{
-    config(
+     config(
         materialized='incremental',
-        file_format='delta',
         incremental_strategy='merge',
         unique_key='incident_id',
         on_schema_change='sync_all_columns'
@@ -13,8 +12,8 @@ WITH incremental_filter AS (
     SELECT
         incident_id,
         trip_id,
-        truck_id,
-        driver_id,
+        NULLIF(truck_id, '') AS truck_id,
+        NULLIF(driver_id, '') AS driver_id,
         incident_date,
         incident_type,
         location_city,

@@ -17,9 +17,6 @@ clean-targets:
 
 models:
   freightlake:
-    bronze:
-      +materialized: view
-      +schema: bronze
     silver:
       +materialized: incremental
       +incremental_strategy: merge
