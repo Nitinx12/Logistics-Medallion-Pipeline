@@ -206,8 +206,17 @@ def build_spark_session(catalog_name: str) -> SparkSession:
     host = config.DATABRICKS_HOST or ""
     if not host:
         raise SystemExit("DATABRICKS_HOST is not set - required to reach the Unity Catalog REST API.")
-    uc_uri = host if host.startswith("http") else f"https://{host}"
-    uc_uri = uc_uri.rstrip("/") + "/api/2.1/unity-catalog"
+    host = host.strip().rstrip("/")
+    # For Databricks workspaces (dbc-*.cloud.databricks.com) the UC client's base URI is the workspace host itself
+    # (e.g. https://dbc-xxx.cloud.databricks.com). The client appends /api/2.1/unity-catalog internally.
+    # For OSS UC (e.g. http://localhost:8080/api/2.1/unity-catalog) the caller passes the full suffix already.
+    if "cloud.databricks.com" in host:
+        uc_uri = host if host.startswith("http") else f"https://{host}"
+    else:
+        # OSS Unity Catalog: ensure the suffix is present if caller gave only host:port
+        uc_uri = host if host.startswith("http") else f"https://{host}"
+        if "/api/2.1/unity-catalog" not in uc_uri:
+            uc_uri = uc_uri.rstrip("/") + "/api/2.1/unity-catalog"
 
     builder = (
         SparkSession.builder.appName("pg_extract_incremental")
@@ -303,9 +312,19 @@ def table_has_column(spark: SparkSession, jdbc_url: str, props: dict, schema: st
 # Watermark + chunk planning
 # ---------------------------------------------------------------------------
 def target_table_exists(spark: SparkSession, target_fqtn: str) -> bool:
+    # Use catalog API instead of DESCRIBE to avoid [TABLE_OR_VIEW_NOT_FOUND] ERROR logs
+    # Spark logs DESCRIBE failures at ERROR via SQLQueryContextLogger even when we catch the exception
     try:
-        spark.sql(f"DESCRIBE TABLE {target_fqtn}")
-        return True
+        parts = target_fqtn.split(".")
+        if len(parts) == 3:
+            catalog, schema, table = parts
+            # If default catalog is set, tableExists can check schema.table; otherwise query UC directly
+            try:
+                return spark.catalog.tableExists(f"{schema}.{table}")
+            except Exception:
+                # Fallback: UC catalog show tables (no ERROR log on miss)
+                return spark.sql(f"SHOW TABLES IN {catalog}.{schema} LIKE '{table}'").count() > 0
+        return spark.catalog.tableExists(target_fqtn)
     except Exception:
         return False
 
