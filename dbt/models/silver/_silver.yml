@@ -1323,9 +1323,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['Collision', 'Near Miss', 'Rollover', 'Cargo Theft', 'Weather Related', 'Mechanical Failure', 'Other']
-              config:
-                severity: warn
+                values: ['Accident', 'Customer Complaint', 'DOT Violation', 'Equipment Damage', 'Moving Violation']
           - no_empty_strings
           - no_white_spaces
       - name: location_city
@@ -1335,6 +1333,9 @@ models:
               config:
                 severity: warn
           - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Milwaukee', 'Minneapolis', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle']
       - name: location_state
         description: State where incident occurred.
         tests:
@@ -1344,22 +1345,21 @@ models:
               config:
                 severity: warn
           - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['AZ', 'CA', 'CO', 'FL', 'GA', 'IL', 'IN', 'MI', 'MN', 'MO', 'NC', 'NE', 'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'TN', 'TX', 'UT', 'WA', 'WI']
       - name: at_fault_flag
         description: Flag indicating driver at fault.
         tests:
           - accepted_values:
               arguments:
-                values: [0, 1, 'true', 'false', True, False]
-              config:
-                severity: warn
+                values: ['True', 'False']
       - name: injury_flag
         description: Flag indicating injury occurred.
         tests:
           - accepted_values:
               arguments:
-                values: [0, 1, 'true', 'false', True, False]
-              config:
-                severity: warn
+                values: ['True', 'False']
       - name: vehicle_damage_cost
         description: Vehicle damage cost in dollars.
         tests:
@@ -1386,9 +1386,7 @@ models:
         tests:
           - accepted_values:
               arguments:
-                values: [0, 1, 'true', 'false', True, False]
-              config:
-                severity: warn
+                values: ['True', 'False']
       - name: description
         description: Free text incident description.
         tests:
