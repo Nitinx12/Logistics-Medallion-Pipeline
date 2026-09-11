@@ -43,9 +43,7 @@ models:
           - no_white_spaces
           - accepted_values:
               arguments:
-                values: ['Enterprise', 'SMB', 'MidMarket', 'Strategic']
-              config:
-                severity: warn
+                values: ['Contract', 'Dedicated', 'Spot']
       - name: credit_terms_days
         description: Payment terms in days agreed for customer.
         tests:
@@ -65,9 +63,7 @@ models:
           - no_white_spaces
           - accepted_values:
               arguments:
-                values: ['FTL', 'LTL', 'Intermodal', 'Reefer', 'Flatbed', 'Tanker']
-              config:
-                severity: warn
+                values: ['Automotive', 'Consumer Goods', 'Electronics', 'Food/Beverage', 'General', 'Retail']
       - name: account_status
         description: Current account lifecycle status.
         tests:
@@ -76,7 +72,7 @@ models:
           - no_white_spaces
           - accepted_values:
               arguments:
-                values: ['Active', 'Inactive', 'Suspended', 'Prospect']
+                values: ['Active', 'Inactive']
       - name: contract_start_date
         description: Date when contract started with customer.
         tests:
