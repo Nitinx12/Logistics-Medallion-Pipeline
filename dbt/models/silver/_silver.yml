@@ -1162,9 +1162,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['Preventive', 'Corrective', 'Inspection', 'Roadside', 'Recall']
-              config:
-                severity: warn
+                values: ['Brake', 'Engine', 'Inspection', 'Preventive', 'Repair', 'Tire', 'Transmission']
           - no_empty_strings
           - no_white_spaces
       - name: odometer_reading
@@ -1213,6 +1211,9 @@ models:
               config:
                 severity: warn
           - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Milwaukee', 'Minneapolis', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle']
       - name: downtime_hours
         description: Vehicle downtime in hours due to maintenance.
         tests:
