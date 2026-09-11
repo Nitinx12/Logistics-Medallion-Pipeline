@@ -244,15 +244,16 @@ models:
           - no_white_spaces
           - accepted_values:
               arguments:
-                values: ['Warehouse', 'Distribution Center', 'Terminal', 'Cross Dock', 'Hub']
-              config:
-                severity: warn
+                values: ['Cross-Dock', 'Distribution Center', 'Terminal', 'Warehouse']
       - name: city
         description: Facility city name.
         tests:
           - not_null
           - no_empty_strings
           - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Miami', 'Milwaukee', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City']
       - name: state
         description: Facility state code.
         tests:
@@ -262,6 +263,9 @@ models:
           - matches_regex:
               arguments:
                 regex: '^[A-Z]{2}$'
+          - accepted_values:
+              arguments:
+                values: ['AZ', 'CA', 'CO', 'FL', 'GA', 'IL', 'IN', 'MI', 'MO', 'NC', 'NE', 'NV', 'NY', 'OK', 'OR', 'PA', 'TN', 'TX', 'UT', 'WI']
       - name: latitude
         description: Geographic latitude coordinate.
         tests:
