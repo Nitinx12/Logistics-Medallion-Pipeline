@@ -19,6 +19,20 @@ POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 POSTGRES_SSLMODE = os.getenv("POSTGRES_SSLMODE")
 POSTGRES_CHANNEL_BINDING = os.getenv("POSTGRES_CHANNEL_BINDING")
 
+# Split databases per diagram PG_OLTP vs PG_MART, with fallback to legacy single DB
+# docker/init/01_create_database.sql creates freightlake_oltp, freightlake_mart, airflow
+POSTGRES_SUPERUSER = os.getenv("POSTGRES_SUPERUSER", POSTGRES_USERNAME)
+POSTGRES_SUPERUSER_PASSWORD = os.getenv("POSTGRES_SUPERUSER_PASSWORD", POSTGRES_PASSWORD)
+POSTGRES_OLTP_DATABASE = os.getenv("POSTGRES_OLTP_DATABASE", POSTGRES_DATABASE)
+POSTGRES_OLTP_USER = os.getenv("POSTGRES_OLTP_USER", POSTGRES_USERNAME)
+POSTGRES_OLTP_PASSWORD = os.getenv("POSTGRES_OLTP_PASSWORD", POSTGRES_PASSWORD)
+POSTGRES_MART_DATABASE = os.getenv("POSTGRES_MART_DATABASE", POSTGRES_DATABASE)
+POSTGRES_MART_USER = os.getenv("POSTGRES_MART_USER", POSTGRES_USERNAME)
+POSTGRES_MART_PASSWORD = os.getenv("POSTGRES_MART_PASSWORD", POSTGRES_PASSWORD)
+POSTGRES_AIRFLOW_DATABASE = os.getenv("POSTGRES_AIRFLOW_DATABASE", "airflow")
+POSTGRES_AIRFLOW_USER = os.getenv("POSTGRES_AIRFLOW_USER", "airflow")
+POSTGRES_AIRFLOW_PASSWORD = os.getenv("POSTGRES_AIRFLOW_PASSWORD", "admin")
+
 # Cast port to int now, fail loudly later if it's garbage instead of silently
 # passing a string into a driver that expects int.
 if POSTGRES_PORT is not None:
@@ -95,6 +109,12 @@ _missing = [k for k, v in _required.items() if not v]
 
 if _missing:
     raise OSError(f"Missing required environment variables: {', '.join(_missing)}")
+
+# Split DB optional vars, only used when init scripts create separate OLTP/MART DBs
+_optional_split = {
+    "POSTGRES_OLTP_DATABASE": POSTGRES_OLTP_DATABASE,
+    "POSTGRES_MART_DATABASE": POSTGRES_MART_DATABASE,
+}
 
 # Soft-required: only needed by scripts that build a bronze/silver/gold
 # schema layout. Missing values here don't stop the Mongo -> Postgres

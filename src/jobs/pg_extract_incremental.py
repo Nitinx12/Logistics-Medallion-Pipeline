@@ -333,12 +333,16 @@ def short_error(e: Exception, limit: int = 220) -> str:
 
 
 def postgres_jdbc_options() -> tuple[str, dict]:
-    url = f"jdbc:postgresql://{config.POSTGRES_HOST}:{config.POSTGRES_PORT}/{config.POSTGRES_DATABASE}"
+    # Prefer OLTP split DB when defined per docker/init/01_create_database.sql
+    database = getattr(config, "POSTGRES_OLTP_DATABASE", None) or config.POSTGRES_DATABASE
+    user = getattr(config, "POSTGRES_OLTP_USER", None) or config.POSTGRES_USERNAME
+    password = getattr(config, "POSTGRES_OLTP_PASSWORD", None) or config.POSTGRES_PASSWORD
+    url = f"jdbc:postgresql://{config.POSTGRES_HOST}:{config.POSTGRES_PORT}/{database}"
     if getattr(config, "POSTGRES_SSLMODE", None):
         url += f"?sslmode={config.POSTGRES_SSLMODE}"
     props = {
-        "user": config.POSTGRES_USERNAME,
-        "password": config.POSTGRES_PASSWORD,
+        "user": user,
+        "password": password,
         "driver": "org.postgresql.Driver",
     }
     return url, props

@@ -1,0 +1,110 @@
+# docker/compose.yml - FreightLake Airflow 3.x + Postgres (OLTP + mart) + MongoDB
+# Build context is .. per AGENTS.md 8 (compose.yml lives inside docker/)
+# Ports checked for collisions: 8080 (Airflow), 5432 (Postgres), 27017 (Mongo)
+# Airflow 3.x requires dag-processor service; do not remove it.
+
+x-airflow-common: &airflow-common
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: 30
+    AIRFLOW__CORE__FERNET_KEY: "46BKJoQYlPPOexq0OhDZnIlD2-xRugq2SKwhQnS9FU="
+  volumes:
+    - ../airflow/dags:/opt/airflow/dags
+    - ../airflow/logs:/opt/airflow/logs
+    - ../dbt:/opt/airflow/dbt
+    - ../gx:/opt/airflow/gx
+    - ../src:/opt/airflow/src
+    - ../jars:/opt/airflow/jars
+    - ../config:/opt/airflow/config
+  env_file:
+    - ../.env
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_AIRFLOW_DATABASE:-airflow}
+      POSTGRES_SUPERUSER: ${POSTGRES_SUPERUSER:-postgres}
+      POSTGRES_OLTP_USER: ${POSTGRES_OLTP_USER:-freightlake_oltp_user}
+      POSTGRES_OLTP_PASSWORD: ${POSTGRES_OLTP_PASSWORD:-changeme}
+      POSTGRES_MART_USER: ${POSTGRES_MART_USER:-freightlake_mart_user}
+      POSTGRES_MART_PASSWORD: ${POSTGRES_MART_PASSWORD:-changeme}
+      POSTGRES_AIRFLOW_USER: ${POSTGRES_AIRFLOW_USER:-airflow}
+      POSTGRES_AIRFLOW_PASSWORD: ${POSTGRES_AIRFLOW_PASSWORD:-admin}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init/01_create_database.sql:/docker-entrypoint-initdb.d/01_create_database.sql:ro
+      - ./init/02_oltp_schema.sh:/docker-entrypoint-initdb.d/02_oltp_schema.sh:ro
+      - ../oltp_schema:/tmp/oltp_schema:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 5
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      retries: 5
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create --username airflow --password airflow --firstname Airflow --lastname Admin --role Admin --email airflow@example.com || true
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  airflow-apiserver:
+    <<: *airflow-common
+    command: airflow api-server
+    ports:
+      - "8080:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 10s
+      retries: 5
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: airflow scheduler
+    depends_on:
+      airflow-apiserver:
+        condition: service_healthy
+
+  # Airflow 3.x requires dag-processor per AGENTS.md 8
+  dag-processor:
+    <<: *airflow-common
+    command: airflow dag-processor
+    depends_on:
+      airflow-apiserver:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  mongo_data:
