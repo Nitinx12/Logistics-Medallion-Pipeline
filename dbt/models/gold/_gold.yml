@@ -299,6 +299,24 @@ models:
           - accepted_values:
               arguments:
                 values: ['Contract', 'Dedicated', 'Spot']
+      - name: total_charge
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 200000
+      - name: is_unmatched_customer
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false, 0, 1]
+      - name: is_unmatched_route
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false, 0, 1]
 
   - name: fact_trips
     description: Gold fact trips at trip grain with driver truck trailer keys and performance measures.
@@ -442,6 +460,17 @@ models:
           - accepted_values:
               arguments:
                 values: ['True', 'False']
+      - name: delay_minutes
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: -1440
+                max_value: 1440
+      - name: on_time_int
+        tests:
+          - accepted_values:
+              arguments:
+                values: [0, 1]
 
   - name: fact_maintenance_records
     description: Gold fact maintenance records with truck key and cost downtime measures.
