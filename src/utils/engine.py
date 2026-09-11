@@ -60,6 +60,21 @@ DATABRICKS_TOKEN = os.getenv("DATABRICKS_TOKEN")
 DATABRICKS_CATALOG = os.getenv("DATABRICKS_CATALOG")
 DATABRICKS_SCHEMA = os.getenv("DATABRICKS_SCHEMA")
 
+# Bronze write strategy for pg_extract_incremental.
+# Databricks managed tables (CATALOG_DB_STORAGE) cannot be created or written
+# from outside Databricks compute (ErrorCode 5108 createStagingTable and 5105
+# getTableCredentials, plus UNITY_CATALOG_EXTERNAL_CREATE_TABLE_REQUEST_FOR_NON_EXTERNAL_TABLE_DENIED).
+# Options:
+#   warehouse   -> use Databricks SQL warehouse via databricks-sql-connector (default, works outside)
+#   local       -> write Delta to local filesystem under BRONZE_LOCAL_PATH (no UC, for offline dev)
+#   uc_managed  -> direct Unity Catalog staged write via UCSingleCatalog (only inside Databricks)
+#   uc_external -> Unity Catalog external tables via external location (requires DATABRICKS_EXTERNAL_LOCATION)
+BRONZE_WRITE_MODE = os.getenv("BRONZE_WRITE_MODE", "warehouse").strip().lower()
+BRONZE_LOCAL_PATH = os.getenv("BRONZE_LOCAL_PATH", "./spark-warehouse/bronze")
+DATABRICKS_EXTERNAL_LOCATION = os.getenv("DATABRICKS_EXTERNAL_LOCATION")
+# Optional explicit external table base location, e.g. s3://bucket/freightlake/bronze
+DATABRICKS_EXTERNAL_BASE_PATH = os.getenv("DATABRICKS_EXTERNAL_BASE_PATH", DATABRICKS_EXTERNAL_LOCATION or "")
+
 
 # =========================================================
 # VALIDATION
