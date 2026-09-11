@@ -943,6 +943,9 @@ models:
               config:
                 severity: warn
           - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Milwaukee', 'Minneapolis', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle']
       - name: location_state
         description: State where fuel was purchased.
         tests:
@@ -952,6 +955,9 @@ models:
               config:
                 severity: warn
           - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['AZ', 'CA', 'CO', 'FL', 'GA', 'IL', 'IN', 'MI', 'MN', 'MO', 'NC', 'NE', 'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'TN', 'TX', 'UT', 'WA', 'WI']
       - name: gallons
         description: Gallons purchased.
         tests:
