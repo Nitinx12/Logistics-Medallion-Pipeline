@@ -36,7 +36,7 @@ SELECT
     CAST(NULL AS STRING) AS license_state,
     CAST(NULL AS DATE) AS date_of_birth,
     CAST(NULL AS STRING) AS home_terminal,
-    'Unknown' AS employment_status,
-    CAST(NULL AS STRING) AS cdl_class,
+    'Active' AS employment_status,
+    'A' AS cdl_class,
     CAST(NULL AS INT) AS years_experience,
     CAST(NULL AS TIMESTAMP) AS updated_at
