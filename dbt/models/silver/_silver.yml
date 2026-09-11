@@ -645,9 +645,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['FTL', 'LTL', 'Partial', 'Expedited']
-              config:
-                severity: warn
+                values: ['Dry Van', 'Refrigerated']
           - no_empty_strings
           - no_white_spaces
       - name: weight_lbs
@@ -696,9 +694,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['Booked', 'Dispatched', 'In Transit', 'Delivered', 'Cancelled', 'Pending']
-              config:
-                severity: warn
+                values: ['Completed']
           - no_empty_strings
           - no_white_spaces
       - name: booking_type
@@ -706,7 +702,7 @@ models:
         tests:
           - accepted_values:
               arguments:
-                values: ['Spot', 'Contract', 'Dedicated']
+                values: ['Contract', 'Dedicated', 'Spot']
           - no_empty_strings:
               config:
                 severity: warn
