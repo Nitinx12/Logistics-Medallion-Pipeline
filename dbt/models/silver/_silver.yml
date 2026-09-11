@@ -860,9 +860,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['Scheduled', 'Dispatched', 'In Transit', 'Delivered', 'Cancelled', 'Planned']
-              config:
-                severity: warn
+                values: ['Completed']
           - no_empty_strings
           - no_white_spaces
       - name: updated_at
