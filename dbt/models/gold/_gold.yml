@@ -1,0 +1,532 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: Gold customer dimension SCD Type 2 built from customers snapshot. One row per version with surrogate key.
+    columns:
+      - name: customer_sk
+        description: Surrogate key hash of customer_id plus valid_from.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: customer_id
+        description: Natural key from source.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+      - name: customer_name
+        tests:
+          - not_null
+          - no_empty_strings
+      - name: customer_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Contract', 'Dedicated', 'Spot']
+      - name: primary_freight_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Automotive', 'Consumer Goods', 'Electronics', 'Food/Beverage', 'General', 'Retail']
+      - name: account_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Active', 'Inactive']
+      - name: effective_from
+        tests:
+          - not_null
+          - no_future_dates
+      - name: effective_to
+        tests:
+          - no_future_dates
+      - name: is_current
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false, 'true', 'false', 0, 1]
+
+  - name: dim_drivers
+    description: Gold driver dimension. One row per driver_id.
+    columns:
+      - name: driver_sk
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: driver_id
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+      - name: driver_name
+        tests:
+          - not_null
+          - no_empty_strings
+      - name: employment_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Active', 'Terminated']
+      - name: cdl_class
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['A']
+      - name: license_state
+        tests:
+          - matches_regex:
+              arguments:
+                regex: '^[A-Z]{2}$'
+
+  - name: dim_facilities
+    description: Gold facilities dimension. One row per facility_id.
+    columns:
+      - name: facility_sk
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: facility_id
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: facility_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Cross-Dock', 'Distribution Center', 'Terminal', 'Warehouse']
+      - name: state
+        tests:
+          - matches_regex:
+              arguments:
+                regex: '^[A-Z]{2}$'
+
+  - name: dim_routes
+    description: Gold routes dimension.
+    columns:
+      - name: route_sk
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: route_id
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: origin_state
+        tests:
+          - matches_regex:
+              arguments:
+                regex: '^[A-Z]{2}$'
+      - name: destination_state
+        tests:
+          - matches_regex:
+              arguments:
+                regex: '^[A-Z]{2}$'
+
+  - name: dim_trucks
+    description: Gold trucks dimension. One row per truck_id.
+    columns:
+      - name: truck_sk
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: truck_id
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: vin
+        tests:
+          - matches_regex:
+              arguments:
+                regex: '^[A-HJ-NPR-Z0-9]{17}$'
+      - name: fuel_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Diesel']
+      - name: status
+        description: Column renamed to truck_status in model but gold keeps status via alias.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Active', 'Inactive', 'Maintenance']
+
+  - name: dim_trailers
+    description: Gold trailers dimension. One row per trailer_id.
+    columns:
+      - name: trailer_sk
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: trailer_id
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: trailer_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Dry Van', 'Refrigerated']
+      - name: status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Active']
+
+  - name: dim_date
+    description: Gold date dimension spine 2020 to 2030.
+    columns:
+      - name: date_key
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: full_date
+        tests:
+          - not_null
+          - no_future_dates:
+              config:
+                severity: warn
+
+  - name: fact_loads
+    description: Gold fact loads at load grain with customer and route surrogate keys.
+    columns:
+      - name: load_id
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: customer_sk
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_sk
+              config:
+                severity: error
+      - name: customer_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('dim_customers')
+                parent_column: customer_id
+              config:
+                severity: warn
+      - name: route_sk
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_routes')
+                field: route_sk
+              config:
+                severity: warn
+      - name: load_date_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: load_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Dry Van', 'Refrigerated']
+      - name: load_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Completed']
+      - name: booking_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Contract', 'Dedicated', 'Spot']
+
+  - name: fact_trips
+    description: Gold fact trips at trip grain with driver truck trailer keys and performance measures.
+    columns:
+      - name: trip_id
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: load_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('fact_loads')
+                field: load_id
+              config:
+                severity: warn
+      - name: driver_sk
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_drivers')
+                field: driver_sk
+              config:
+                severity: warn
+      - name: truck_sk
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_trucks')
+                field: truck_sk
+              config:
+                severity: warn
+      - name: trailer_sk
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_trailers')
+                field: trailer_sk
+              config:
+                severity: warn
+      - name: dispatch_date_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: trip_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Completed']
+      - name: is_unassigned
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false, 0, 1]
+
+  - name: fact_fuel_purchases
+    description: Gold fact fuel purchases with truck and driver keys and cost measures.
+    columns:
+      - name: fuel_purchase_id
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: truck_sk
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_trucks')
+                field: truck_sk
+              config:
+                severity: warn
+      - name: driver_sk
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_drivers')
+                field: driver_sk
+              config:
+                severity: warn
+      - name: purchase_date_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: is_unmatched_fuel_card
+        tests:
+          - accepted_values:
+              arguments:
+                values: [true, false, 0, 1]
+
+  - name: fact_delivery_events
+    description: Gold fact delivery events at event grain with facility key and timing measures.
+    columns:
+      - name: event_id
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: load_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('fact_loads')
+                field: load_id
+      - name: trip_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('fact_trips')
+                field: trip_id
+              config:
+                severity: warn
+      - name: facility_sk
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_facilities')
+                field: facility_sk
+              config:
+                severity: warn
+      - name: event_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Delivery', 'Pickup']
+      - name: on_time_flag
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['True', 'False']
+
+  - name: fact_maintenance_records
+    description: Gold fact maintenance records with truck key and cost downtime measures.
+    columns:
+      - name: maintenance_id
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: truck_sk
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_trucks')
+                field: truck_sk
+      - name: maintenance_date_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: maintenance_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Brake', 'Engine', 'Inspection', 'Preventive', 'Repair', 'Tire', 'Transmission']
+
+  - name: fact_safety_incidents
+    description: Gold fact safety incidents with driver truck keys and cost measures. Empty strings handled via NULLIF in silver.
+    columns:
+      - name: incident_id
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+      - name: driver_sk
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_drivers')
+                field: driver_sk
+              config:
+                severity: warn
+      - name: truck_sk
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_trucks')
+                field: truck_sk
+              config:
+                severity: warn
+      - name: incident_date_key
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: incident_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Accident', 'Customer Complaint', 'DOT Violation', 'Equipment Damage', 'Moving Violation']
+
+  - name: fact_operations
+    description: Gold operations aggregated fact by ops_date joining trips loads fuel maintenance safety daily.
+    columns:
+      - name: ops_date_key
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: ops_date
+        tests:
+          - not_null
+          - no_future_dates

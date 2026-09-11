@@ -28,6 +28,11 @@ models:
 vars:
   catalog: "{{ env_var('DATABRICKS_CATALOG', 'freightlake') }}"
 
+snapshots:
+  freightlake:
+    +schema: snapshots
+    +target_schema: snapshots
+
 on-run-start:
   - "{{ create_udfs() if target.type == 'databricks' else '' }}"
 
