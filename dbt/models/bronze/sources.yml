@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: bronze
+    catalog: "{{ env_var('DATABRICKS_CATALOG', 'freightlake') }}"
+    schema: bronze
+    description: bronze tables data extract from postgres and mongodb and dump in databricks bronze schema
+    tables:
+      - name: customers
+      - name: drivers
+      - name: facilities
+      - name: fuel_purchases
+      - name: loads
+      - name: routes
+      - name: trailers
+      - name: trips
+      - name: trucks
+      - name: delivery_events
+      - name: maintenance_records
+      - name: safety_incidents

@@ -1,0 +1,1417 @@
+version: 2
+
+models:
+  - name: customers
+    description: Silver customers dimension cleansed and deduplicated from bronze customers source. One row per customer id with latest updated at and watermark handling.
+    columns:
+      - name: customer_id
+        description: Primary key for customers. Unique identifier from source system.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings:
+              config:
+                severity: error
+          - no_white_spaces:
+              config:
+                severity: error
+          - matches_regex:
+              arguments:
+                regex: '^[A-Za-z0-9_-]+$'
+              config:
+                severity: error
+      - name: customer_name
+        description: Customer display name as provided by source.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_empty_strings:
+              config:
+                severity: error
+          - no_white_spaces:
+              config:
+                severity: error
+      - name: customer_type
+        description: Customer classification grouping in source.
+        tests:
+          - no_empty_strings
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Contract', 'Dedicated', 'Spot']
+      - name: credit_terms_days
+        description: Payment terms in days agreed for customer.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 120
+              config:
+                severity: error
+          - not_null:
+              config:
+                severity: warn
+      - name: primary_freight_type
+        description: Main freight mode used by customer.
+        tests:
+          - no_empty_strings
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Automotive', 'Consumer Goods', 'Electronics', 'Food/Beverage', 'General', 'Retail']
+      - name: account_status
+        description: Current account lifecycle status.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Active', 'Inactive']
+      - name: contract_start_date
+        description: Date when contract started with customer.
+        tests:
+          - no_future_dates
+          - not_null:
+              config:
+                severity: warn
+      - name: annual_revenue_potential
+        description: Estimated annual revenue potential for customer in dollars.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100000000
+          - not_null:
+              config:
+                severity: warn
+      - name: updated_at
+        description: Last update timestamp from source system used for incremental watermark.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+
+  - name: drivers
+    description: Silver drivers dimension with employment and license attributes.
+    columns:
+      - name: driver_id
+        description: Primary key for drivers.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+          - matches_regex:
+              arguments:
+                regex: '^[A-Za-z0-9_-]+$'
+      - name: first_name
+        description: Driver first name.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - matches_regex:
+              arguments:
+                regex: '^[A-Za-z -]+$'
+      - name: last_name
+        description: Driver last name.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - matches_regex:
+              arguments:
+                regex: '^[A-Za-z -]+$'
+      - name: hire_date
+        description: Date driver was hired.
+        tests:
+          - not_null
+          - no_future_dates
+      - name: termination_date
+        description: Date driver employment ended if applicable.
+        tests:
+          - no_future_dates
+      - name: license_number
+        description: Commercial driver license number.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - matches_regex:
+              arguments:
+                regex: '^[A-Za-z0-9-]+$'
+      - name: license_state
+        description: State that issued the license as two letter code.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - matches_regex:
+              arguments:
+                regex: '^[A-Z]{2}$'
+          - accepted_values:
+              arguments:
+                values: ['AZ', 'CA', 'CO', 'FL', 'GA', 'IL', 'IN', 'MI', 'MN', 'MO', 'NC', 'NE', 'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'TN', 'TX', 'UT', 'WA', 'WI']
+      - name: date_of_birth
+        description: Driver birth date.
+        tests:
+          - no_future_dates
+          - not_null:
+              config:
+                severity: warn
+      - name: home_terminal
+        description: Home terminal location for driver.
+        tests:
+          - no_empty_strings
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Milwaukee', 'Minneapolis', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle']
+      - name: employment_status
+        description: Current employment status.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Active', 'Terminated']
+      - name: cdl_class
+        description: Commercial license class.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['A']
+          - no_white_spaces
+      - name: years_experience
+        description: Years of driving experience.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 60
+          - not_null:
+              config:
+                severity: warn
+      - name: updated_at
+        description: Last update timestamp for incremental processing.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+
+  - name: facilities
+    description: Silver facilities dimension for warehouses and terminals.
+    columns:
+      - name: facility_id
+        description: Primary key for facilities.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+      - name: facility_name
+        description: Facility display name.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+      - name: facility_type
+        description: Facility functional type.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Cross-Dock', 'Distribution Center', 'Terminal', 'Warehouse']
+      - name: city
+        description: Facility city name.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Miami', 'Milwaukee', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City']
+      - name: state
+        description: Facility state code.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - matches_regex:
+              arguments:
+                regex: '^[A-Z]{2}$'
+          - accepted_values:
+              arguments:
+                values: ['AZ', 'CA', 'CO', 'FL', 'GA', 'IL', 'IN', 'MI', 'MO', 'NC', 'NE', 'NV', 'NY', 'OK', 'OR', 'PA', 'TN', 'TX', 'UT', 'WI']
+      - name: latitude
+        description: Geographic latitude coordinate.
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: -90
+                max_value: 90
+      - name: longitude
+        description: Geographic longitude coordinate.
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: -180
+                max_value: 180
+      - name: dock_doors
+        description: Number of dock doors at facility.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 500
+          - not_null:
+              config:
+                severity: warn
+      - name: operating_hours
+        description: Operating hours description.
+        tests:
+          - no_empty_strings:
+              config:
+                severity: warn
+      - name: updated_at
+        description: Last update timestamp.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+
+  - name: routes
+    description: Silver routes master data with origin and destination and rate attributes.
+    columns:
+      - name: route_id
+        description: Primary key for routes.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+      - name: origin_city
+        description: Origin city name.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Kansas City', 'Las Vegas', 'Memphis', 'Miami', 'Minneapolis', 'New York', 'Philadelphia', 'Phoenix', 'Portland', 'Seattle']
+      - name: origin_state
+        description: Origin state code two letters.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - matches_regex:
+              arguments:
+                regex: '^[A-Z]{2}$'
+          - accepted_values:
+              arguments:
+                values: ['AZ', 'CO', 'FL', 'GA', 'IL', 'MI', 'MN', 'MO', 'NC', 'NV', 'NY', 'OH', 'OR', 'PA', 'TN', 'TX', 'WA']
+      - name: destination_city
+        description: Destination city name.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Minneapolis', 'New York', 'Philadelphia', 'Portland', 'Seattle']
+      - name: destination_state
+        description: Destination state code two letters.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - matches_regex:
+              arguments:
+                regex: '^[A-Z]{2}$'
+          - accepted_values:
+              arguments:
+                values: ['CA', 'CO', 'FL', 'GA', 'IL', 'IN', 'MI', 'MN', 'MO', 'NC', 'NV', 'NY', 'OH', 'OR', 'PA', 'TN', 'TX', 'WA']
+      - name: typical_distance_miles
+        description: Typical distance for route in miles.
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 5000
+      - name: base_rate_per_mile
+        description: Base rate in dollars per mile.
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 20
+      - name: fuel_surcharge_rate
+        description: Fuel surcharge rate per mile.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 5
+      - name: typical_transit_days
+        description: Typical transit time in days.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 30
+          - not_null:
+              config:
+                severity: warn
+      - name: updated_at
+        description: Last update timestamp.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+
+  - name: trucks
+    description: Silver trucks dimension with acquisition and status attributes.
+    columns:
+      - name: truck_id
+        description: Primary key for trucks.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+      - name: unit_number
+        description: Business visible unit number for truck.
+        tests:
+          - not_null
+          - unique
+          - no_empty_strings
+          - no_white_spaces
+      - name: make
+        description: Truck manufacturer make.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Freightliner', 'International', 'Kenworth', 'Mack', 'Peterbilt', 'Volvo']
+      - name: model_year
+        description: Model year of truck.
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: 1990
+                max_value: 2027
+      - name: vin
+        description: Vehicle identification number seventeen characters.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - matches_regex:
+              arguments:
+                regex: '^[A-HJ-NPR-Z0-9]{17}$'
+      - name: acquisition_date
+        description: Date truck was acquired.
+        tests:
+          - not_null
+          - no_future_dates
+      - name: acquisition_mileage
+        description: Odometer at acquisition.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 2000000
+      - name: fuel_type
+        description: Fuel type used by truck.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Diesel']
+          - no_empty_strings
+          - no_white_spaces
+      - name: tank_capacity_gallons
+        description: Fuel tank capacity in gallons.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 300
+      - name: status
+        description: Current operational status of truck.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Active', 'Inactive', 'Maintenance']
+      - name: home_terminal
+        description: Home terminal for truck assignment.
+        tests:
+          - no_empty_strings:
+              config:
+                severity: warn
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Milwaukee', 'Minneapolis', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle']
+      - name: updated_at
+        description: Last update timestamp.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+
+  - name: trailers
+    description: Silver trailers dimension.
+    columns:
+      - name: trailer_id
+        description: Primary key for trailers.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+      - name: trailer_number
+        description: Business visible trailer number.
+        tests:
+          - not_null
+          - unique:
+              config:
+                severity: warn
+                where: "status = 'Active'"
+          - no_empty_strings
+          - no_white_spaces
+      - name: trailer_type
+        description: Trailer functional type.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Dry Van', 'Refrigerated']
+          - no_empty_strings
+          - no_white_spaces
+      - name: length_feet
+        description: Trailer length in feet.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 20
+                max_value: 100
+          - not_null
+      - name: model_year
+        description: Model year of trailer.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 1990
+                max_value: 2027
+      - name: vin
+        description: Vehicle identification number for trailer.
+        tests:
+          - no_empty_strings
+          - no_white_spaces
+          - matches_regex:
+              arguments:
+                regex: '^[A-HJ-NPR-Z0-9]{17}$'
+              config:
+                severity: warn
+      - name: acquisition_date
+        description: Date trailer was acquired.
+        tests:
+          - no_future_dates
+      - name: status
+        description: Current status of trailer.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Active']
+          - no_empty_strings
+          - no_white_spaces
+      - name: current_location
+        description: Current location description for trailer.
+        tests:
+          - no_empty_strings:
+              config:
+                severity: warn
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Milwaukee', 'Minneapolis', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle']
+      - name: updated_at
+        description: Last update timestamp.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+
+  - name: loads
+    description: Silver loads fact style dimension with customer and route links and financial amounts.
+    columns:
+      - name: load_id
+        description: Primary key for loads.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+      - name: customer_id
+        description: Customer owning the load.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+          - relationships:
+              arguments:
+                to: ref('customers')
+                field: customer_id
+              config:
+                severity: error
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('customers')
+                parent_column: customer_id
+              config:
+                severity: error
+      - name: route_id
+        description: Route assigned to load.
+        tests:
+          - no_empty_strings:
+              config:
+                severity: warn
+          - no_white_spaces
+          - relationships:
+              arguments:
+                to: ref('routes')
+                field: route_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('routes')
+                parent_column: route_id
+              config:
+                severity: warn
+      - name: load_date
+        description: Date load was created.
+        tests:
+          - not_null
+          - no_future_dates
+      - name: load_type
+        description: Load categorization by size and mode.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Dry Van', 'Refrigerated']
+          - no_empty_strings
+          - no_white_spaces
+      - name: weight_lbs
+        description: Weight of load in pounds.
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 80000
+      - name: pieces
+        description: Number of pieces in load.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 1
+                max_value: 1000
+          - not_null:
+              config:
+                severity: warn
+      - name: revenue
+        description: Revenue for load in dollars.
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100000
+      - name: fuel_surcharge
+        description: Fuel surcharge amount in dollars.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 10000
+      - name: accessorial_charges
+        description: Additional accessorial charges in dollars.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 10000
+      - name: load_status
+        description: Current lifecycle status of load.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Completed']
+          - no_empty_strings
+          - no_white_spaces
+      - name: booking_type
+        description: Booking channel for load.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Contract', 'Dedicated', 'Spot']
+          - no_empty_strings:
+              config:
+                severity: warn
+          - no_white_spaces
+      - name: updated_at
+        description: Last update timestamp.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+
+  - name: trips
+    description: Silver trips fact table linking load driver truck and trailer with performance metrics.
+    columns:
+      - name: trip_id
+        description: Primary key for trips.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+      - name: load_id
+        description: Load associated with trip.
+        tests:
+          - not_null
+          - no_empty_strings
+          - no_white_spaces
+          - relationships:
+              arguments:
+                to: ref('loads')
+                field: load_id
+              config:
+                severity: error
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('loads')
+                parent_column: load_id
+      - name: driver_id
+        description: Driver assigned to trip.
+        tests:
+          - not_null:
+              config:
+                severity: warn
+                where: "trip_status != 'Completed'"
+          - relationships:
+              arguments:
+                to: ref('drivers')
+                field: driver_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('drivers')
+                parent_column: driver_id
+              config:
+                severity: warn
+      - name: truck_id
+        description: Truck assigned to trip.
+        tests:
+          - not_null:
+              config:
+                severity: warn
+                where: "trip_status != 'Completed'"
+          - relationships:
+              arguments:
+                to: ref('trucks')
+                field: truck_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('trucks')
+                parent_column: truck_id
+              config:
+                severity: warn
+      - name: trailer_id
+        description: Trailer assigned to trip.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('trailers')
+                field: trailer_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('trailers')
+                parent_column: trailer_id
+              config:
+                severity: warn
+      - name: dispatch_date
+        description: Date trip was dispatched.
+        tests:
+          - not_null
+          - no_future_dates
+      - name: actual_distance_miles
+        description: Actual distance traveled in miles.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 5000
+          - not_null:
+              config:
+                severity: warn
+      - name: actual_duration_hours
+        description: Actual duration in hours.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 500
+      - name: fuel_gallons_used
+        description: Fuel consumed on trip in gallons.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1000
+      - name: average_mpg
+        description: Average miles per gallon achieved.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 30
+      - name: idle_time_hours
+        description: Idle time during trip in hours.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: trip_status
+        description: Current status of trip.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Completed']
+          - no_empty_strings
+          - no_white_spaces
+      - name: updated_at
+        description: Last update timestamp.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+
+  - name: fuel_purchases
+    description: Silver fuel purchases events linked to trip and vehicle.
+    columns:
+      - name: fuel_purchase_id
+        description: Primary key for fuel purchases.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+      - name: trip_id
+        description: Trip during which fuel was purchased.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('trips')
+                field: trip_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('trips')
+                parent_column: trip_id
+              config:
+                severity: warn
+          - no_empty_strings:
+              config:
+                severity: warn
+      - name: truck_id
+        description: Truck that received fuel.
+        tests:
+          - not_null:
+              config:
+                severity: warn
+                store_failures: true
+          - relationships:
+              arguments:
+                to: ref('trucks')
+                field: truck_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('trucks')
+                parent_column: truck_id
+              config:
+                severity: warn
+      - name: driver_id
+        description: Driver who made purchase.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('drivers')
+                field: driver_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('drivers')
+                parent_column: driver_id
+              config:
+                severity: warn
+      - name: purchase_date
+        description: Date of fuel purchase.
+        tests:
+          - not_null
+          - no_future_dates
+      - name: location_city
+        description: City where fuel was purchased.
+        tests:
+          - no_empty_strings:
+              config:
+                severity: warn
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Milwaukee', 'Minneapolis', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle']
+      - name: location_state
+        description: State where fuel was purchased.
+        tests:
+          - matches_regex:
+              arguments:
+                regex: '^[A-Z]{2}$'
+              config:
+                severity: warn
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['AZ', 'CA', 'CO', 'FL', 'GA', 'IL', 'IN', 'MI', 'MN', 'MO', 'NC', 'NE', 'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'TN', 'TX', 'UT', 'WA', 'WI']
+      - name: gallons
+        description: Gallons purchased.
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 500
+      - name: price_per_gallon
+        description: Price per gallon in dollars.
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 15
+      - name: total_cost
+        description: Total purchase cost in dollars.
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 10000
+      - name: fuel_card_number
+        description: Fuel card used for purchase.
+        tests:
+          - no_empty_strings:
+              config:
+                severity: warn
+          - no_white_spaces
+          - matches_regex:
+              arguments:
+                regex: '^[A-Za-z0-9-]+$'
+              config:
+                severity: warn
+      - name: updated_at
+        description: Last update timestamp.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+
+  - name: delivery_events
+    description: Silver delivery events tracking pickup and delivery milestones.
+    columns:
+      - name: event_id
+        description: Primary key for delivery events.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+      - name: load_id
+        description: Load linked to event.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('loads')
+                field: load_id
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('loads')
+                parent_column: load_id
+      - name: trip_id
+        description: Trip linked to event.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('trips')
+                field: trip_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('trips')
+                parent_column: trip_id
+              config:
+                severity: warn
+      - name: event_type
+        description: Type of delivery milestone.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Delivery', 'Pickup']
+          - no_empty_strings
+          - no_white_spaces
+      - name: facility_id
+        description: Facility where event occurred.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('facilities')
+                field: facility_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('facilities')
+                parent_column: facility_id
+              config:
+                severity: warn
+      - name: scheduled_datetime
+        description: Scheduled date and time for event.
+        tests:
+          - not_null
+          - no_future_dates:
+              config:
+                severity: warn
+      - name: actual_datetime
+        description: Actual date and time when event occurred.
+        tests:
+          - no_future_dates
+      - name: detention_minutes
+        description: Detention time in minutes.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1440
+      - name: on_time_flag
+        description: Flag indicating on time performance true or false.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['True', 'False']
+      - name: location_city
+        description: City where event occurred.
+        tests:
+          - no_empty_strings:
+              config:
+                severity: warn
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Minneapolis', 'New York', 'Philadelphia', 'Phoenix', 'Portland', 'Seattle']
+      - name: location_state
+        description: State where event occurred.
+        tests:
+          - matches_regex:
+              arguments:
+                regex: '^[A-Z]{2}$'
+              config:
+                severity: warn
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['AZ', 'CA', 'CO', 'FL', 'GA', 'IL', 'IN', 'MI', 'MN', 'MO', 'NC', 'NV', 'NY', 'OH', 'OR', 'PA', 'TN', 'TX', 'WA']
+      - name: updated_at
+        description: Last update timestamp used for watermark.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+      - name: event_ts
+        description: Event timestamp from source for ordering.
+        tests:
+          - no_future_dates
+
+  - name: maintenance_records
+    description: Silver maintenance records for trucks.
+    columns:
+      - name: maintenance_id
+        description: Primary key for maintenance records.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+      - name: truck_id
+        description: Truck that received maintenance.
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('trucks')
+                field: truck_id
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('trucks')
+                parent_column: truck_id
+      - name: maintenance_date
+        description: Date maintenance was performed.
+        tests:
+          - not_null
+          - no_future_dates
+      - name: maintenance_type
+        description: Category of maintenance.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Brake', 'Engine', 'Inspection', 'Preventive', 'Repair', 'Tire', 'Transmission']
+          - no_empty_strings
+          - no_white_spaces
+      - name: odometer_reading
+        description: Odometer reading at maintenance time.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 3000000
+          - not_null:
+              config:
+                severity: warn
+      - name: labor_hours
+        description: Labor hours spent.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: labor_cost
+        description: Labor cost in dollars.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 10000
+      - name: parts_cost
+        description: Parts cost in dollars.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 20000
+      - name: total_cost
+        description: Total maintenance cost in dollars.
+        tests:
+          - not_null
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 50000
+      - name: facility_location
+        description: Location where maintenance occurred.
+        tests:
+          - no_empty_strings:
+              config:
+                severity: warn
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Milwaukee', 'Minneapolis', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle']
+      - name: downtime_hours
+        description: Vehicle downtime in hours due to maintenance.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 720
+      - name: service_description
+        description: Free text description of service.
+        tests:
+          - no_empty_strings:
+              config:
+                severity: warn
+      - name: updated_at
+        description: Last update timestamp.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+      - name: event_ts
+        description: Event timestamp from source.
+        tests:
+          - no_future_dates
+
+  - name: safety_incidents
+    description: Silver safety incidents with impact and cost attributes.
+    columns:
+      - name: incident_id
+        description: Primary key for safety incidents.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - unique:
+              config:
+                severity: error
+          - no_empty_strings
+          - no_white_spaces
+      - name: trip_id
+        description: Trip during which incident occurred.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('trips')
+                field: trip_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('trips')
+                parent_column: trip_id
+              config:
+                severity: warn
+      - name: truck_id
+        description: Truck involved in incident.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('trucks')
+                field: truck_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('trucks')
+                parent_column: truck_id
+              config:
+                severity: warn
+      - name: driver_id
+        description: Driver involved in incident.
+        tests:
+          - relationships:
+              arguments:
+                to: ref('drivers')
+                field: driver_id
+              config:
+                severity: warn
+          - no_orphan_rows:
+              arguments:
+                parent_model: ref('drivers')
+                parent_column: driver_id
+              config:
+                severity: warn
+      - name: incident_date
+        description: Date incident occurred.
+        tests:
+          - not_null
+          - no_future_dates
+      - name: incident_type
+        description: Category of safety incident.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Accident', 'Customer Complaint', 'DOT Violation', 'Equipment Damage', 'Moving Violation']
+          - no_empty_strings
+          - no_white_spaces
+      - name: location_city
+        description: City where incident occurred.
+        tests:
+          - no_empty_strings:
+              config:
+                severity: warn
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Milwaukee', 'Minneapolis', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle']
+      - name: location_state
+        description: State where incident occurred.
+        tests:
+          - matches_regex:
+              arguments:
+                regex: '^[A-Z]{2}$'
+              config:
+                severity: warn
+          - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['AZ', 'CA', 'CO', 'FL', 'GA', 'IL', 'IN', 'MI', 'MN', 'MO', 'NC', 'NE', 'NV', 'NY', 'OH', 'OK', 'OR', 'PA', 'TN', 'TX', 'UT', 'WA', 'WI']
+      - name: at_fault_flag
+        description: Flag indicating driver at fault.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['True', 'False']
+      - name: injury_flag
+        description: Flag indicating injury occurred.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['True', 'False']
+      - name: vehicle_damage_cost
+        description: Vehicle damage cost in dollars.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1000000
+      - name: cargo_damage_cost
+        description: Cargo damage cost in dollars.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 1000000
+      - name: claim_amount
+        description: Insurance claim amount in dollars.
+        tests:
+          - accepted_range:
+              arguments:
+                min_value: 0
+                max_value: 2000000
+      - name: preventable_flag
+        description: Flag indicating incident was preventable.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['True', 'False']
+      - name: description
+        description: Free text incident description.
+        tests:
+          - no_empty_strings:
+              config:
+                severity: warn
+      - name: updated_at
+        description: Last update timestamp.
+        tests:
+          - not_null:
+              config:
+                severity: error
+          - no_future_dates:
+              config:
+                severity: error
+      - name: event_ts
+        description: Event timestamp from source.
+        tests:
+          - no_future_dates
