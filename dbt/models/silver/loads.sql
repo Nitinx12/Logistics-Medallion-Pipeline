@@ -1,7 +1,6 @@
 {{
     config(
         materialized='incremental',
-        file_format='delta',
         incremental_strategy='merge',
         unique_key='load_id',
         on_schema_change='sync_all_columns'

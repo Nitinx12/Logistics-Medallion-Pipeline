@@ -22,7 +22,7 @@ UNION ALL
 
 SELECT
     SHA2('UNKNOWN', 256) AS trailer_sk,
-    'UNKNOWN' AS trailer_id,
+    CAST(-1 AS BIGINT) AS trailer_id,
     'UNKNOWN' AS trailer_number,
     'Unknown' AS trailer_type,
     CAST(NULL AS INT) AS length_feet,

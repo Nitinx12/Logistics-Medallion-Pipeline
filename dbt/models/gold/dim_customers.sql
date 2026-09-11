@@ -39,3 +39,22 @@ SELECT
     dbt_valid_to AS effective_to,
     CASE WHEN dbt_valid_to IS NULL THEN TRUE ELSE FALSE END AS is_current
 FROM snapshot
+
+UNION ALL
+
+-- Unknown member: keeps fact_loads.customer_sk NOT NULL even when a load's
+-- customer_id doesn't match any current row in the customer snapshot.
+SELECT
+    SHA2('UNKNOWN', 256) AS customer_sk,
+    'UNKNOWN' AS customer_id,
+    'Unknown' AS customer_name,
+    'Unknown' AS customer_type,
+    CAST(NULL AS INT) AS credit_terms_days,
+    'Unknown' AS primary_freight_type,
+    'Unknown' AS account_status,
+    CAST(NULL AS DATE) AS contract_start_date,
+    CAST(NULL AS DOUBLE) AS annual_revenue_potential,
+    CAST(NULL AS TIMESTAMP) AS updated_at,
+    CAST(NULL AS TIMESTAMP) AS effective_from,
+    CAST(NULL AS TIMESTAMP) AS effective_to,
+    TRUE AS is_current

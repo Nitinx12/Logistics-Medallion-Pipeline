@@ -10,7 +10,14 @@ WITH trips_agg AS (
         COUNT(*) AS trip_count,
         SUM(actual_distance_miles) AS total_distance_miles,
         SUM(fuel_gallons_used) AS total_fuel_gallons,
-        AVG(average_mpg) AS avg_mpg,
+        -- Weighted average (total miles / total gallons), not AVG(average_mpg):
+        -- averaging per-trip ratios directly would bias the daily figure
+        -- toward short trips instead of reflecting actual fleet fuel economy.
+        CASE
+            WHEN SUM(fuel_gallons_used) > 0
+                THEN SUM(actual_distance_miles) / SUM(fuel_gallons_used)
+            ELSE NULL
+        END AS avg_mpg,
         SUM(idle_time_hours) AS total_idle_hours
     FROM {{ ref('trips') }}
     GROUP BY 1

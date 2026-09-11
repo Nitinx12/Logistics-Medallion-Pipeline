@@ -24,7 +24,7 @@ UNION ALL
 
 SELECT
     SHA2('UNKNOWN', 256) AS truck_sk,
-    'UNKNOWN' AS truck_id,
+    CAST(-1 AS BIGINT) AS truck_id,
     'UNKNOWN' AS unit_number,
     'Unknown' AS make,
     CAST(NULL AS INT) AS model_year,
