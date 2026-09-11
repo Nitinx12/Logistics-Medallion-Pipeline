@@ -1,0 +1,36 @@
+name: silver_checkpoint
+config_version: 1.0
+class_name: Checkpoint
+validations:
+  - batch_request:
+      datasource_name: freightlake_postgres
+      data_connector_name: default_inferred_data_connector_name
+      data_asset_name: silver.customers
+    expectation_suite_name: silver.customers
+  - batch_request:
+      datasource_name: freightlake_postgres
+      data_connector_name: default_inferred_data_connector_name
+      data_asset_name: silver.trucks
+    expectation_suite_name: silver.trucks
+  - batch_request:
+      datasource_name: freightlake_postgres
+      data_connector_name: default_inferred_data_connector_name
+      data_asset_name: silver.trailers
+    expectation_suite_name: silver.trailers
+  - batch_request:
+      datasource_name: freightlake_postgres
+      data_connector_name: default_inferred_data_connector_name
+      data_asset_name: silver.fuel_purchases
+    expectation_suite_name: silver.fuel_purchases
+  - batch_request:
+      datasource_name: freightlake_postgres
+      data_connector_name: default_inferred_data_connector_name
+      data_asset_name: silver.trips
+    expectation_suite_name: silver.trips
+action_list:
+  - name: store_validation_result
+    action:
+      class_name: StoreValidationResultAction
+  - name: update_data_docs
+    action:
+      class_name: UpdateDataDocsAction

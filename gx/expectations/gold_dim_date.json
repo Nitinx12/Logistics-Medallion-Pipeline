@@ -1,0 +1,33 @@
+{
+  "expectation_suite_name": "gold.dim_date",
+  "ge_cloud_id": null,
+  "data_asset_type": null,
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "date_key" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": { "column": "date_key" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "full_date" },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "date_key", "min_value": 20200101, "max_value": 20301231 },
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.23.0",
+    "layer": "gold",
+    "model": "dim_date",
+    "notes": "No future date check intentionally omitted, spine is 2020-2030 by design, 1572 future rows expected"
+  }
+}

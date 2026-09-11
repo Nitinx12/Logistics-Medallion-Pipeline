@@ -1,0 +1,48 @@
+{
+  "expectation_suite_name": "silver.trailers",
+  "ge_cloud_id": null,
+  "data_asset_type": null,
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "trailer_id" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": { "column": "trailer_id" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "trailer_number" },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": { "column": "trailer_number" },
+      "meta": { "severity": "warn", "notes": "dbt where status = Active, 4 dupes observed in 2026-09-11 run" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": { "column": "trailer_type", "value_set": ["Dry Van", "Refrigerated"] },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "length_feet", "min_value": 20, "max_value": 100 },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": { "column": "status", "value_set": ["Active"] },
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.23.0",
+    "layer": "silver",
+    "model": "trailers",
+    "known_issue": "unique_trailers_trailer_number WARN=4"
+  }
+}

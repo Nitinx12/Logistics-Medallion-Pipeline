@@ -1,0 +1,53 @@
+{
+  "expectation_suite_name": "silver.fuel_purchases",
+  "ge_cloud_id": null,
+  "data_asset_type": null,
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "fuel_purchase_id" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": { "column": "fuel_purchase_id" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "truck_id" },
+      "meta": { "severity": "warn", "notes": "3880 nulls observed 2026-09-11, orphan fuel card" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "gallons", "min_value": 0, "max_value": 500 },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "price_per_gallon", "min_value": 0, "max_value": 15 },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "total_cost", "min_value": 0, "max_value": 10000 },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "kwargs": { "column": "fuel_card_number", "regex": "^[A-Za-z0-9-]+$" },
+      "meta": { "severity": "warn" }
+    },
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": { "min_value": 1 },
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.23.0",
+    "layer": "silver",
+    "model": "fuel_purchases",
+    "known_issue": "not_null_fuel_purchases_truck_id WARN=3880"
+  }
+}

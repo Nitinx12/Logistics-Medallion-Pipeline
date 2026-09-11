@@ -1,0 +1,32 @@
+{
+  "expectation_suite_name": "silver.trips",
+  "ge_cloud_id": null,
+  "data_asset_type": null,
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "trip_id" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": { "column": "trip_id" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "actual_distance_miles", "min_value": 0, "max_value": 5000 },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": { "column": "trip_status", "value_set": ["Completed"] },
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.23.0",
+    "layer": "silver",
+    "model": "trips"
+  }
+}

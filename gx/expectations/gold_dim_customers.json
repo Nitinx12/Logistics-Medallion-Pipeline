@@ -1,0 +1,47 @@
+{
+  "expectation_suite_name": "gold.dim_customers",
+  "ge_cloud_id": null,
+  "data_asset_type": null,
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "customer_sk" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": { "column": "customer_sk" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "customer_id" },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": { "column": "customer_type", "value_set": ["Contract", "Dedicated", "Spot"] },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": { "column": "account_status", "value_set": ["Active", "Inactive"] },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "effective_from" },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": { "column": "is_current", "value_set": [true, false, 0, 1, "true", "false"] },
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.23.0",
+    "layer": "gold",
+    "model": "dim_customers"
+  }
+}

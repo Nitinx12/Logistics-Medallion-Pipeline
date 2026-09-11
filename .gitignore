@@ -150,6 +150,12 @@ logs/
 __init__.pyreports/asset/pipeline.mp4
 
 gx/uncommitted/
-gx/expectations/
+!gx/.gitkeep
+!gx/expectations/*.json
+!gx/checkpoints/*.yml
+!gx/gx.yml
+!gx/README.md
+!gx/run_validations.py
+!gx/plugins/*.py
 
 link/.env

@@ -1,0 +1,26 @@
+name: gold_checkpoint
+config_version: 1.0
+class_name: Checkpoint
+validations:
+  - batch_request:
+      datasource_name: freightlake_postgres
+      data_connector_name: default_inferred_data_connector_name
+      data_asset_name: gold.dim_customers
+    expectation_suite_name: gold.dim_customers
+  - batch_request:
+      datasource_name: freightlake_postgres
+      data_connector_name: default_inferred_data_connector_name
+      data_asset_name: gold.dim_date
+    expectation_suite_name: gold.dim_date
+  - batch_request:
+      datasource_name: freightlake_postgres
+      data_connector_name: default_inferred_data_connector_name
+      data_asset_name: gold.fact_loads
+    expectation_suite_name: gold.fact_loads
+action_list:
+  - name: store_validation_result
+    action:
+      class_name: StoreValidationResultAction
+  - name: update_data_docs
+    action:
+      class_name: UpdateDataDocsAction

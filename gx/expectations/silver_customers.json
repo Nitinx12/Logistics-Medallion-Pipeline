@@ -1,0 +1,63 @@
+{
+  "expectation_suite_name": "silver.customers",
+  "ge_cloud_id": null,
+  "data_asset_type": null,
+  "expectations": [
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "customer_id" },
+      "meta": { "severity": "error", "dbt_test": "not_null" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_unique",
+      "kwargs": { "column": "customer_id" },
+      "meta": { "severity": "error", "dbt_test": "unique" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_match_regex",
+      "kwargs": { "column": "customer_id", "regex": "^[A-Za-z0-9_-]+$" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_not_be_null",
+      "kwargs": { "column": "customer_name" },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": { "column": "customer_type", "value_set": ["Contract", "Dedicated", "Spot"] },
+      "meta": { "severity": "warn" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "credit_terms_days", "min_value": 0, "max_value": 120 },
+      "meta": { "severity": "error" }
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": { "column": "primary_freight_type", "value_set": ["Automotive", "Consumer Goods", "Electronics", "Food/Beverage", "General", "Retail"] },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_in_set",
+      "kwargs": { "column": "account_status", "value_set": ["Active", "Inactive"] },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_column_values_to_be_between",
+      "kwargs": { "column": "annual_revenue_potential", "min_value": 0, "max_value": 100000000 },
+      "meta": {}
+    },
+    {
+      "expectation_type": "expect_table_row_count_to_be_between",
+      "kwargs": { "min_value": 1 },
+      "meta": {}
+    }
+  ],
+  "meta": {
+    "great_expectations_version": "1.23.0",
+    "layer": "silver",
+    "model": "customers",
+    "description": "Mirrors dbt/models/silver/_silver.yml customers tests"
+  }
+}
