@@ -534,9 +534,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['Dry Van', 'Reefer', 'Flatbed', 'Tanker', 'Container']
-              config:
-                severity: warn
+                values: ['Dry Van', 'Refrigerated']
           - no_empty_strings
           - no_white_spaces
       - name: length_feet
@@ -574,7 +572,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['Active', 'Inactive', 'Maintenance', 'Retired', 'Available']
+                values: ['Active']
           - no_empty_strings
           - no_white_spaces
       - name: current_location
@@ -583,6 +581,9 @@ models:
           - no_empty_strings:
               config:
                 severity: warn
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Chicago', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Milwaukee', 'Minneapolis', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle']
       - name: updated_at
         description: Last update timestamp.
         tests:
