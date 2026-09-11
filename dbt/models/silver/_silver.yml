@@ -434,6 +434,9 @@ models:
           - not_null
           - no_empty_strings
           - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Freightliner', 'International', 'Kenworth', 'Mack', 'Peterbilt', 'Volvo']
       - name: model_year
         description: Model year of truck.
         tests:
@@ -469,7 +472,7 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ['Diesel', 'CNG', 'Electric', 'Hybrid', 'Gasoline']
+                values: ['Diesel']
           - no_empty_strings
           - no_white_spaces
       - name: tank_capacity_gallons
@@ -487,7 +490,7 @@ models:
           - no_white_spaces
           - accepted_values:
               arguments:
-                values: ['Active', 'Inactive', 'Maintenance', 'Retired', 'Available']
+                values: ['Active', 'Inactive', 'Maintenance']
       - name: home_terminal
         description: Home terminal for truck assignment.
         tests:
@@ -495,6 +498,9 @@ models:
               config:
                 severity: warn
           - no_white_spaces
+          - accepted_values:
+              arguments:
+                values: ['Atlanta', 'Charlotte', 'Columbus', 'Dallas', 'Denver', 'Detroit', 'Houston', 'Indianapolis', 'Kansas City', 'Las Vegas', 'Los Angeles', 'Memphis', 'Miami', 'Milwaukee', 'Minneapolis', 'Nashville', 'New York', 'Oklahoma City', 'Omaha', 'Philadelphia', 'Phoenix', 'Portland', 'Salt Lake City', 'Seattle']
       - name: updated_at
         description: Last update timestamp.
         tests:
