@@ -14,6 +14,12 @@ x-airflow-common: &airflow-common
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
     AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: 30
     AIRFLOW__CORE__FERNET_KEY: "46BKJoQYlPPOexq0OhDZnIlD2-xRugq2SKwhQnS9FU="
+    # .env points Postgres and Mongo at localhost for local runs of the
+    # extraction jobs. Inside this container localhost is the container
+    # itself, so override with the compose service names. `environment:`
+    # wins over `env_file:` in Docker Compose.
+    POSTGRES_HOST: postgres
+    MONGO_URI: mongodb://mongo:27017
   volumes:
     - ../airflow/dags:/opt/airflow/dags
     - ../airflow/logs:/opt/airflow/logs
@@ -48,7 +54,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init/01_create_database.sql:/docker-entrypoint-initdb.d/01_create_database.sql:ro
       - ./init/02_oltp_schema.sh:/docker-entrypoint-initdb.d/02_oltp_schema.sh:ro
-      - ../oltp_schema:/tmp/oltp_schema:ro
+      # OLTP DDL lives in sql/oltp_schema/ per the documented repo layout;
+      # 02_oltp_schema.sh applies every *.sql file found under /tmp/oltp_schema
+      - ../sql/oltp_schema:/tmp/oltp_schema:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
