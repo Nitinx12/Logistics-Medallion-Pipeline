@@ -1,0 +1,49 @@
+name: Feature request
+description: Request a new capability
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for new capabilities. Keep the scope to one topic per issue.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      placeholder: One line description of the capability
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Target layer
+      options:
+        - bronze
+        - silver
+        - gold
+        - mart publish
+        - airflow
+        - docker
+        - dbt
+        - gx
+        - docs
+        - scripts
+        - other
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this needed and how does it fit the medallion roadmap?
+    validations:
+      required: true
+
+  - type: textarea
+    id: design
+    attributes:
+      label: Proposed design
+      description: Tables, DAG changes, tests, and docs to be added

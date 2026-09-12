@@ -1,7 +1,7 @@
 #!/bin/bash
-# publish_mart.sh - refresh the serving mart from gold medallion
-# Runs a dbt run-operation that copies/refreshes mart tables in Postgres.
-# Wrapped in a transaction so a failure rolls back the partial publish.
+# publish_mart.sh - publish the gold star schema to the Postgres mart
+# Runs the Spark JDBC publish job. Gold tables are materialized as tables,
+# so the publish is a full overwrite per table into the mart gold schema.
 
 set -euo pipefail
 
@@ -12,17 +12,9 @@ mkdir -p "$(dirname "$LOG_FILE")"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 
-DBT_PROFILES_DIR="${DBT_PROFILES_DIR:-$REPO_ROOT/dbt}"
-DBT_OPERATION="${DBT_OPERATION:-refresh_mart}"
+log "[publish_mart] start"
 
-log "[publish_mart] start operation=$DBT_OPERATION"
-
-cd "$REPO_ROOT/dbt"
-if command -v dbt >/dev/null 2>&1; then
-  dbt run-operation --profiles-dir "$DBT_PROFILES_DIR" "$DBT_OPERATION" 2>&1 | tee -a "$LOG_FILE"
-else
-  log "[publish_mart] dbt not found, using uv run"
-  uv run dbt run-operation --profiles-dir "$DBT_PROFILES_DIR" "$DBT_OPERATION" 2>&1 | tee -a "$LOG_FILE"
-fi
+cd "$REPO_ROOT"
+uv run python -m src.jobs.publish_gold_to_postgres 2>&1 | tee -a "$LOG_FILE"
 
 log "[publish_mart] done"

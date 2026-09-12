@@ -85,7 +85,6 @@ import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 # ---------------------------------------------------------------------------
 # Quiet the terminal down BEFORE pyspark is imported: py4j/log4j start
@@ -136,48 +135,110 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(
         description="Incrementally extract Postgres table(s) into Delta table(s)."
     )
-    p.add_argument("--table", default=None, help="Source table, e.g. 'orders' or 'public.orders'. Omit to process every table in --source-schema.")
-    p.add_argument("--source-schema", default="public", help="Postgres schema to read from / discover tables in (default: public)")
-    p.add_argument("--exclude-tables", default="", help="Comma-separated table names to skip when running against all tables")
+    p.add_argument(
+        "--table",
+        default=None,
+        help="Source table, e.g. 'orders' or 'public.orders'. Omit to process every table in --source-schema.",
+    )
+    p.add_argument(
+        "--source-schema",
+        default="public",
+        help="Postgres schema to read from / discover tables in (default: public)",
+    )
+    p.add_argument(
+        "--exclude-tables",
+        default="",
+        help="Comma-separated table names to skip when running against all tables",
+    )
 
-    p.add_argument("--target-catalog", default=getattr(config, "DATABRICKS_CATALOG", None), help="Unity Catalog catalog name (default: DATABRICKS_CATALOG env)")
+    p.add_argument(
+        "--target-catalog",
+        default=getattr(config, "DATABRICKS_CATALOG", None),
+        help="Unity Catalog catalog name (default: DATABRICKS_CATALOG env)",
+    )
     p.add_argument("--target-schema", default="bronze", help="Target schema (default: bronze)")
-    p.add_argument("--target-table", default=None, help="Target table name, single-table mode only (default: same as source table)")
-    p.add_argument("--write-mode", choices=["auto", "warehouse", "local", "uc_managed", "uc_external"], default="auto", help="Bronze write strategy: auto picks BRONZE_WRITE_MODE env (warehouse default) and falls back from uc_managed on 403; warehouse uses SQL warehouse, local writes to BRONZE_LOCAL_PATH, uc_managed/uc_external use UCSingleCatalog")
+    p.add_argument(
+        "--target-table",
+        default=None,
+        help="Target table name, single-table mode only (default: same as source table)",
+    )
+    p.add_argument(
+        "--write-mode",
+        choices=["auto", "warehouse", "local", "uc_managed", "uc_external"],
+        default="auto",
+        help="Bronze write strategy: auto picks BRONZE_WRITE_MODE env (warehouse default) and falls back from uc_managed on 403; warehouse uses SQL warehouse, local writes to BRONZE_LOCAL_PATH, uc_managed/uc_external use UCSingleCatalog",
+    )
 
-    p.add_argument("--updated-at-column", default="updated_at", help="Watermark column (default: updated_at)")
-    p.add_argument("--no-updated-at-mode", choices=["skip", "overwrite"], default="overwrite", help="What to do with tables lacking --updated-at-column when running against all tables: full snapshot replace, or skip (default: overwrite)")
-    p.add_argument("--mode", choices=["append", "merge"], default="append", help="append = bronze-style insert log; merge = upsert on --key-column (single-table mode only)")
-    p.add_argument("--key-column", default=None, help="Primary key column, required when --mode merge")
+    p.add_argument(
+        "--updated-at-column", default="updated_at", help="Watermark column (default: updated_at)"
+    )
+    p.add_argument(
+        "--no-updated-at-mode",
+        choices=["skip", "overwrite"],
+        default="overwrite",
+        help="What to do with tables lacking --updated-at-column when running against all tables: full snapshot replace, or skip (default: overwrite)",
+    )
+    p.add_argument(
+        "--mode",
+        choices=["append", "merge"],
+        default="append",
+        help="append = bronze-style insert log; merge = upsert on --key-column (single-table mode only)",
+    )
+    p.add_argument(
+        "--key-column", default=None, help="Primary key column, required when --mode merge"
+    )
 
-    p.add_argument("--chunk-days", type=float, default=7.0, help="Size of each incremental time window in days (default: 7 for backfill of 10k+ rows, use smaller for near real time)")
-    p.add_argument("--fetch-size", type=int, default=50_000, help="JDBC fetchsize per round trip (default: 50000 for 10k+ rows)")
-    p.add_argument("--num-partitions", type=int, default=4, help="Parallel JDBC connections per chunk, partitioned on the watermark column (default: 4 for 10k+ rows past processing)")
+    p.add_argument(
+        "--chunk-days",
+        type=float,
+        default=7.0,
+        help="Size of each incremental time window in days (default: 7 for backfill of 10k+ rows, use smaller for near real time)",
+    )
+    p.add_argument(
+        "--fetch-size",
+        type=int,
+        default=50_000,
+        help="JDBC fetchsize per round trip (default: 50000 for 10k+ rows)",
+    )
+    p.add_argument(
+        "--num-partitions",
+        type=int,
+        default=4,
+        help="Parallel JDBC connections per chunk, partitioned on the watermark column (default: 4 for 10k+ rows past processing)",
+    )
 
-    p.add_argument("--since", default=None, help="Override the watermark, ISO format e.g. 2026-01-01T00:00:00")
-    p.add_argument("--full", action="store_true", help="Force a full reload, ignoring the existing watermark")
-    p.add_argument("--dry-run", action="store_true", help="Compute chunks and row counts but write nothing")
+    p.add_argument(
+        "--since", default=None, help="Override the watermark, ISO format e.g. 2026-01-01T00:00:00"
+    )
+    p.add_argument(
+        "--full", action="store_true", help="Force a full reload, ignoring the existing watermark"
+    )
+    p.add_argument(
+        "--dry-run", action="store_true", help="Compute chunks and row counts but write nothing"
+    )
 
     return p.parse_args()
 
 
 @dataclass
 class JobConfig:
-    source_fqtn: str          # schema.table in Postgres
-    target_fqtn: str          # catalog.schema.table in Unity Catalog
+    source_fqtn: str  # schema.table in Postgres
+    target_fqtn: str  # catalog.schema.table in Unity Catalog
     updated_at_col: str
     mode: str
-    key_column: Optional[str]
+    key_column: str | None
     chunk_days: float
     fetch_size: int
     num_partitions: int
-    since_override: Optional[datetime]
+    since_override: datetime | None
     force_full: bool
     dry_run: bool
     write_mode: str = "warehouse"
 
 
-def build_job_config(args: argparse.Namespace, table_name: str, target_table_override: Optional[str] = None) -> JobConfig:
+def build_job_config(
+    args: argparse.Namespace, table_name: str, target_table_override: str | None = None
+) -> JobConfig:
     source_fqtn = table_name if "." in table_name else f"{args.source_schema}.{table_name}"
 
     target_table = target_table_override or table_name.split(".")[-1]
@@ -239,7 +300,9 @@ def _is_uc_managed_blocked(e: Exception) -> bool:
 def build_spark_session(catalog_name: str, write_mode: str = "warehouse") -> SparkSession:
     jar_paths = sorted(str(p) for p in JARS_DIR.glob("*.jar"))
     if not jar_paths:
-        raise SystemExit(f"No jars found in {JARS_DIR}. Expected the Postgres/Delta/Unity Catalog jars there.")
+        raise SystemExit(
+            f"No jars found in {JARS_DIR}. Expected the Postgres/Delta/Unity Catalog jars there."
+        )
 
     # local mode does not need Unity Catalog at all
     if write_mode == "local":
@@ -247,19 +310,26 @@ def build_spark_session(catalog_name: str, write_mode: str = "warehouse") -> Spa
             SparkSession.builder.appName("pg_extract_incremental")
             .config("spark.jars", ",".join(jar_paths))
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+            .config(
+                "spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+            )
             .config("spark.ui.showConsoleProgress", "false")
             .config("spark.sql.session.timeZone", "UTC")
         )
         if LOG4J_CONFIG.exists():
-            builder = builder.config("spark.driver.extraJavaOptions", f"-Dlog4j.configurationFile={LOG4J_CONFIG.as_uri()}")
+            builder = builder.config(
+                "spark.driver.extraJavaOptions",
+                f"-Dlog4j.configurationFile={LOG4J_CONFIG.as_uri()}",
+            )
         spark = builder.getOrCreate()
         spark.sparkContext.setLogLevel("ERROR")
         return spark
 
     host = config.DATABRICKS_HOST or ""
     if not host:
-        raise SystemExit("DATABRICKS_HOST is not set - required to reach the Unity Catalog REST API.")
+        raise SystemExit(
+            "DATABRICKS_HOST is not set - required to reach the Unity Catalog REST API."
+        )
     host = host.strip().rstrip("/")
     # For Databricks workspaces (dbc-*.cloud.databricks.com) the UC client's base URI is the workspace host itself
     # (e.g. https://dbc-xxx.cloud.databricks.com). The client appends /api/2.1/unity-catalog internally.
@@ -276,7 +346,9 @@ def build_spark_session(catalog_name: str, write_mode: str = "warehouse") -> Spa
         SparkSession.builder.appName("pg_extract_incremental")
         .config("spark.jars", ",".join(jar_paths))
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+        .config(
+            "spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+        )
         .config(f"spark.sql.catalog.{catalog_name}", "io.unitycatalog.spark.UCSingleCatalog")
         .config(f"spark.sql.catalog.{catalog_name}.uri", uc_uri)
         .config(f"spark.sql.catalog.{catalog_name}.token", config.DATABRICKS_TOKEN or "")
@@ -294,7 +366,9 @@ def build_spark_session(catalog_name: str, write_mode: str = "warehouse") -> Spa
     return spark
 
 
-def verify_uc_catalog(spark: SparkSession, catalog_name: str, write_mode: str = "warehouse") -> None:
+def verify_uc_catalog(
+    spark: SparkSession, catalog_name: str, write_mode: str = "warehouse"
+) -> None:
     """Fail fast, once, with a short readable message instead of a giant Java
     stack trace repeated for every table if the catalog plugin can't load."""
     if write_mode in {"local", "warehouse"}:
@@ -314,7 +388,9 @@ def verify_uc_catalog(spark: SparkSession, catalog_name: str, write_mode: str = 
                 "  https://repo1.maven.org/maven2/io/unitycatalog/unitycatalog-spark_4.2_2.13/\n"
                 f"and drop the jar into {JARS_DIR}, then rerun."
             )
-        raise SystemExit(f"Could not reach Unity Catalog catalog '{catalog_name}': {short_error(e)}")
+        raise SystemExit(
+            f"Could not reach Unity Catalog catalog '{catalog_name}': {short_error(e)}"
+        )
 
 
 def short_error(e: Exception, limit: int = 220) -> str:
@@ -326,7 +402,13 @@ def short_error(e: Exception, limit: int = 220) -> str:
         return type(e).__name__
     # Prefer the line with the actual API error (403, listSchemas, ApiException) over the generic Py4J header
     for line in text.splitlines():
-        if "ApiException" in line or "listSchemas" in line or "403" in line or "401" in line or "404" in line:
+        if (
+            "ApiException" in line
+            or "listSchemas" in line
+            or "403" in line
+            or "401" in line
+            or "404" in line
+        ):
             return line.strip()[:limit] + ("…" if len(line.strip()) > limit else "")
     first_line = text.splitlines()[0].strip()
     return first_line if len(first_line) <= limit else first_line[: limit - 1] + "…"
@@ -351,7 +433,9 @@ def postgres_jdbc_options() -> tuple[str, dict]:
 # ---------------------------------------------------------------------------
 # Table discovery
 # ---------------------------------------------------------------------------
-def discover_tables(spark: SparkSession, jdbc_url: str, props: dict, schema: str, exclude: set[str]) -> list[str]:
+def discover_tables(
+    spark: SparkSession, jdbc_url: str, props: dict, schema: str, exclude: set[str]
+) -> list[str]:
     query = (
         "(SELECT table_name FROM information_schema.tables "
         f"WHERE table_schema = '{schema}' AND table_type = 'BASE TABLE' "
@@ -361,7 +445,9 @@ def discover_tables(spark: SparkSession, jdbc_url: str, props: dict, schema: str
     return [r["table_name"] for r in rows if r["table_name"] not in exclude]
 
 
-def table_has_column(spark: SparkSession, jdbc_url: str, props: dict, schema: str, table: str, column: str) -> bool:
+def table_has_column(
+    spark: SparkSession, jdbc_url: str, props: dict, schema: str, table: str, column: str
+) -> bool:
     query = (
         "(SELECT 1 AS present FROM information_schema.columns "
         f"WHERE table_schema = '{schema}' AND table_name = '{table}' AND column_name = '{column}') AS c"
@@ -425,9 +511,18 @@ def _local_max_watermark(spark: SparkSession, target_fqtn: str, col: str):
 
 def _spark_type_to_sql(t) -> str:
     from pyspark.sql.types import (
-        StringType, IntegerType, LongType, DoubleType, FloatType,
-        BooleanType, TimestampType, DateType, DecimalType, BinaryType,
+        BinaryType,
+        BooleanType,
+        DateType,
+        DecimalType,
+        DoubleType,
+        FloatType,
+        IntegerType,
+        LongType,
+        StringType,
+        TimestampType,
     )
+
     if isinstance(t, StringType):
         return "STRING"
     if isinstance(t, IntegerType):
@@ -449,10 +544,14 @@ def _spark_type_to_sql(t) -> str:
     return "STRING"
 
 
-def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Optional[str] = None) -> None:
+def _write_via_warehouse(
+    df: DataFrame, target_fqtn: str, mode: str, key_col: str | None = None
+) -> None:
     """Create managed table via warehouse and insert rows. Works from outside."""
-    import pandas as pd
     import math
+
+    import pandas as pd
+
     try:
         from ..utils.connections import get_databricks_connection
     except ImportError:
@@ -475,7 +574,7 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
             try:
                 return f"'{pd.Timestamp(v).isoformat()}'"
             except Exception:
-                return f"'{str(v)}'"
+                return f"'{v!s}'"
         # bytes
         if isinstance(v, (bytes, bytearray)):
             return "'" + v.hex() + "'"
@@ -500,7 +599,7 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
         batch_size = 5000
         if mode == "merge" and key_col and key_col in pdf.columns:
             for start in range(0, len(pdf), batch_size):
-                batch = pdf.iloc[start:start+batch_size]
+                batch = pdf.iloc[start : start + batch_size]
                 cols = ", ".join(f"`{c}`" for c in pdf.columns)
                 rows_sql = []
                 for _, r in batch.iterrows():
@@ -518,7 +617,7 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
         else:
             cols = ", ".join(f"`{c}`" for c in pdf.columns)
             for start in range(0, len(pdf), batch_size):
-                batch = pdf.iloc[start:start+batch_size]
+                batch = pdf.iloc[start : start + batch_size]
                 rows_sql = []
                 for _, r in batch.iterrows():
                     vals = [_sql_literal(v) for v in r]
@@ -527,7 +626,9 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
                 cur.execute(f"INSERT INTO {target_fqtn} ({cols}) VALUES {values_clause}")
 
 
-def _write_local_delta(spark: SparkSession, df: DataFrame, target_fqtn: str, mode: str, table_exists: bool) -> None:
+def _write_local_delta(
+    spark: SparkSession, df: DataFrame, target_fqtn: str, mode: str, table_exists: bool
+) -> None:
     path = str(_local_delta_path(target_fqtn))
     if not table_exists:
         df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(path)
@@ -541,7 +642,9 @@ def _write_local_delta(spark: SparkSession, df: DataFrame, target_fqtn: str, mod
 # ---------------------------------------------------------------------------
 # Watermark + chunk planning
 # ---------------------------------------------------------------------------
-def target_table_exists(spark: SparkSession, target_fqtn: str, write_mode: str = "warehouse") -> bool:
+def target_table_exists(
+    spark: SparkSession, target_fqtn: str, write_mode: str = "warehouse"
+) -> bool:
     if write_mode == "local":
         return _local_table_exists(target_fqtn)
     if write_mode == "warehouse":
@@ -567,7 +670,7 @@ def target_table_exists(spark: SparkSession, target_fqtn: str, write_mode: str =
         return False
 
 
-def _coerce_datetime(value, context: str) -> Optional[datetime]:
+def _coerce_datetime(value, context: str) -> datetime | None:
     """Bounds and watermarks should come back from Spark as real datetimes,
     but if the underlying column is actually text/varchar rather than a
     native timestamp/timestamptz type, Spark infers StringType and hands
@@ -580,11 +683,15 @@ def _coerce_datetime(value, context: str) -> Optional[datetime]:
         try:
             return datetime.fromisoformat(value)
         except ValueError as e:
-            raise ValueError(f"Could not parse {context} value {value!r} as an ISO timestamp: {e}") from e
+            raise ValueError(
+                f"Could not parse {context} value {value!r} as an ISO timestamp: {e}"
+            ) from e
     raise TypeError(f"Unexpected type {type(value).__name__} for {context}: {value!r}")
 
 
-def get_source_bounds(spark: SparkSession, jdbc_url: str, props: dict, source_fqtn: str, updated_at_col: str):
+def get_source_bounds(
+    spark: SparkSession, jdbc_url: str, props: dict, source_fqtn: str, updated_at_col: str
+):
     query = f"(SELECT MIN({updated_at_col}) AS min_ts, MAX({updated_at_col}) AS max_ts FROM {source_fqtn}) AS bounds"
     row = spark.read.jdbc(jdbc_url, query, properties=props).collect()[0]
     min_ts = _coerce_datetime(row["min_ts"], f"{source_fqtn}.{updated_at_col} MIN")
@@ -592,7 +699,7 @@ def get_source_bounds(spark: SparkSession, jdbc_url: str, props: dict, source_fq
     return min_ts, max_ts
 
 
-def resolve_watermark(spark: SparkSession, job: JobConfig) -> Optional[datetime]:
+def resolve_watermark(spark: SparkSession, job: JobConfig) -> datetime | None:
     if job.force_full:
         return None
     if job.since_override:
@@ -606,7 +713,9 @@ def resolve_watermark(spark: SparkSession, job: JobConfig) -> Optional[datetime]
         if job.write_mode == "warehouse":
             wm = _warehouse_max_watermark(job.target_fqtn, job.updated_at_col)
             return _coerce_datetime(wm, f"{job.target_fqtn}.{job.updated_at_col} watermark")
-        row = spark.sql(f"SELECT MAX({job.updated_at_col}) AS wm FROM {job.target_fqtn}").collect()[0]
+        row = spark.sql(f"SELECT MAX({job.updated_at_col}) AS wm FROM {job.target_fqtn}").collect()[
+            0
+        ]
         return _coerce_datetime(row["wm"], f"{job.target_fqtn}.{job.updated_at_col} watermark")
     except Exception:
         # If watermark query fails (e.g. table not yet created via warehouse), treat as full load
@@ -724,7 +833,9 @@ def write_chunk(spark: SparkSession, df: DataFrame, job: JobConfig, table_exists
         spark.catalog.dropTempView(tmp_view)
     except Exception as e:
         if job.write_mode in {"uc_managed", "uc_external"} or _is_uc_managed_blocked(e):
-            log.warning(f"UC managed write blocked for {job.target_fqtn} ({short_error(e)}). Falling back to warehouse writes. Set BRONZE_WRITE_MODE=warehouse or local to avoid this.")
+            log.warning(
+                f"UC managed write blocked for {job.target_fqtn} ({short_error(e)}). Falling back to warehouse writes. Set BRONZE_WRITE_MODE=warehouse or local to avoid this."
+            )
             try:
                 _write_via_warehouse(df, job.target_fqtn, job.mode, job.key_column)
                 return
@@ -734,7 +845,9 @@ def write_chunk(spark: SparkSession, df: DataFrame, job: JobConfig, table_exists
         raise
 
 
-def run_incremental_table(spark: SparkSession, jdbc_url: str, props: dict, job: JobConfig, progress: Progress) -> dict:
+def run_incremental_table(
+    spark: SparkSession, jdbc_url: str, props: dict, job: JobConfig, progress: Progress
+) -> dict:
     """Watermarked, chunked extract + load for one table. Used for both single-table and bulk runs."""
     t0 = datetime.now()
     table_exists = target_table_exists(spark, job.target_fqtn, job.write_mode)
@@ -742,7 +855,14 @@ def run_incremental_table(spark: SparkSession, jdbc_url: str, props: dict, job: 
     min_ts, max_ts = get_source_bounds(spark, jdbc_url, props, job.source_fqtn, job.updated_at_col)
 
     if max_ts is None:
-        return {"table": job.source_fqtn, "kind": "EMPTY", "rows": 0, "chunks": 0, "status": "no rows in source", "elapsed": datetime.now() - t0}
+        return {
+            "table": job.source_fqtn,
+            "kind": "EMPTY",
+            "rows": 0,
+            "chunks": 0,
+            "status": "no rows in source",
+            "elapsed": datetime.now() - t0,
+        }
 
     start = watermark if watermark is not None else min_ts
     end = max_ts
@@ -750,7 +870,14 @@ def run_incremental_table(spark: SparkSession, jdbc_url: str, props: dict, job: 
 
     windows = build_windows(start, end, job.chunk_days, full_load=(load_kind == "FULL"))
     if not windows:
-        return {"table": job.source_fqtn, "kind": load_kind, "rows": 0, "chunks": 0, "status": "up to date", "elapsed": datetime.now() - t0}
+        return {
+            "table": job.source_fqtn,
+            "kind": load_kind,
+            "rows": 0,
+            "chunks": 0,
+            "status": "up to date",
+            "elapsed": datetime.now() - t0,
+        }
 
     # For warehouse/local full loads, truncate first to make --full idempotent (otherwise append duplicates)
     if load_kind == "FULL" and table_exists and not job.dry_run:
@@ -770,6 +897,7 @@ def run_incremental_table(spark: SparkSession, jdbc_url: str, props: dict, job: 
         elif job.write_mode == "local":
             try:
                 import shutil
+
                 p = _local_delta_path(job.target_fqtn)
                 if p.exists():
                     shutil.rmtree(p)
@@ -805,7 +933,9 @@ def run_incremental_table(spark: SparkSession, jdbc_url: str, props: dict, job: 
     }
 
 
-def run_full_snapshot_table(spark: SparkSession, jdbc_url: str, props: dict, job: JobConfig, progress: Progress) -> dict:
+def run_full_snapshot_table(
+    spark: SparkSession, jdbc_url: str, props: dict, job: JobConfig, progress: Progress
+) -> dict:
     """Simple full-replace load for tables with no watermark column (e.g. lookup tables)."""
     t0 = datetime.now()
     task = progress.add_task(f"{job.source_fqtn} (snapshot, no {job.updated_at_col})", total=1)
@@ -841,7 +971,9 @@ def run_full_snapshot_table(spark: SparkSession, jdbc_url: str, props: dict, job
             _write_via_warehouse(df, job.target_fqtn, "append")
         else:
             try:
-                df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(job.target_fqtn)
+                df.write.format("delta").mode("overwrite").option(
+                    "overwriteSchema", "true"
+                ).saveAsTable(job.target_fqtn)
             except Exception as e:
                 if _is_uc_managed_blocked(e):
                     _write_via_warehouse(df, job.target_fqtn, "append")
@@ -852,7 +984,14 @@ def run_full_snapshot_table(spark: SparkSession, jdbc_url: str, props: dict, job
 
     progress.advance(task)
     progress.remove_task(task)
-    return {"table": job.source_fqtn, "kind": "SNAPSHOT", "rows": row_count, "chunks": 1, "status": status, "elapsed": datetime.now() - t0}
+    return {
+        "table": job.source_fqtn,
+        "kind": "SNAPSHOT",
+        "rows": row_count,
+        "chunks": 1,
+        "status": status,
+        "elapsed": datetime.now() - t0,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -870,10 +1009,14 @@ def main() -> None:
     write_mode = resolve_write_mode(getattr(args, "write_mode", "auto"))
     # Validate warehouse mode needs warehouse credentials
     if write_mode == "warehouse" and not getattr(config, "DATABRICKS_TOKEN", None):
-        console.print("[yellow]BRONZE_WRITE_MODE=warehouse but DATABRICKS_TOKEN is not set. Falling back to local.[/yellow]")
+        console.print(
+            "[yellow]BRONZE_WRITE_MODE=warehouse but DATABRICKS_TOKEN is not set. Falling back to local.[/yellow]"
+        )
         write_mode = "local"
 
-    with console.status(f"[cyan]Starting Spark session (write_mode={write_mode})...", spinner="dots"):
+    with console.status(
+        f"[cyan]Starting Spark session (write_mode={write_mode})...", spinner="dots"
+    ):
         spark = build_spark_session(args.target_catalog, write_mode=write_mode)
     verify_uc_catalog(spark, args.target_catalog, write_mode=write_mode)
     log.info(f"Spark session ready (write_mode={write_mode})")
@@ -883,22 +1026,31 @@ def main() -> None:
 
     bulk_mode = args.table is None
     if bulk_mode:
-        with console.status(f"[cyan]Discovering tables in '{args.source_schema}'...", spinner="dots"):
+        with console.status(
+            f"[cyan]Discovering tables in '{args.source_schema}'...", spinner="dots"
+        ):
             table_names = discover_tables(spark, jdbc_url, props, args.source_schema, exclude)
         if not table_names:
             console.print(f"[yellow]No tables found in schema '{args.source_schema}'.[/yellow]")
             spark.stop()
             return
         if args.target_table:
-            console.print("[yellow]--target-table is ignored when running against all tables.[/yellow]")
+            console.print(
+                "[yellow]--target-table is ignored when running against all tables.[/yellow]"
+            )
     else:
         table_names = [args.table]
 
     header = (
-        (f"[bold]tables[/bold]  {len(table_names)} discovered in '{args.source_schema}'\n" if bulk_mode
-         else f"[bold]source[/bold]  {table_names[0] if '.' in table_names[0] else f'{args.source_schema}.{table_names[0]}'}\n")
+        (
+            f"[bold]tables[/bold]  {len(table_names)} discovered in '{args.source_schema}'\n"
+            if bulk_mode
+            else f"[bold]source[/bold]  {table_names[0] if '.' in table_names[0] else f'{args.source_schema}.{table_names[0]}'}\n"
+        )
         + f"[bold]target[/bold]  {args.target_catalog}.{args.target_schema}  (write_mode={write_mode})\n"
-        + f"[bold]mode[/bold]    {args.mode}" + (f"  (key: {args.key_column})" if args.mode == "merge" else "") + "\n"
+        + f"[bold]mode[/bold]    {args.mode}"
+        + (f"  (key: {args.key_column})" if args.mode == "merge" else "")
+        + "\n"
         + f"[bold]window[/bold]  {args.chunk_days}d chunks, fetchsize={args.fetch_size}, partitions={args.num_partitions}"
     )
     if write_mode == "warehouse":
@@ -906,8 +1058,16 @@ def main() -> None:
     elif write_mode == "local":
         header += f"\n[dim]local Delta at {getattr(config, 'BRONZE_LOCAL_PATH', './spark-warehouse/bronze')} – no UC, no 403[/dim]"
     elif write_mode == "uc_managed":
-        header += "\n[dim]UC managed via UCSingleCatalog – only works inside Databricks compute[/dim]"
-    console.print(Panel.fit(header, title="pg_extract_incremental" + (" - all tables" if bulk_mode else ""), border_style="cyan"))
+        header += (
+            "\n[dim]UC managed via UCSingleCatalog – only works inside Databricks compute[/dim]"
+        )
+    console.print(
+        Panel.fit(
+            header,
+            title="pg_extract_incremental" + (" - all tables" if bulk_mode else ""),
+            border_style="cyan",
+        )
+    )
     if bulk_mode:
         console.print(f"[dim]{', '.join(table_names)}[/dim]")
 
@@ -922,20 +1082,47 @@ def main() -> None:
 
     results = []
     with progress:
-        overall = progress.add_task("[bold]overall[/bold]", total=len(table_names)) if bulk_mode else None
+        overall = (
+            progress.add_task("[bold]overall[/bold]", total=len(table_names)) if bulk_mode else None
+        )
         for name in table_names:
-            job = build_job_config(args, name, target_table_override=args.target_table if not bulk_mode else None)
+            job = build_job_config(
+                args, name, target_table_override=args.target_table if not bulk_mode else None
+            )
             try:
-                has_watermark_col = table_has_column(spark, jdbc_url, props, args.source_schema, name.split(".")[-1], job.updated_at_col)
+                has_watermark_col = table_has_column(
+                    spark,
+                    jdbc_url,
+                    props,
+                    args.source_schema,
+                    name.split(".")[-1],
+                    job.updated_at_col,
+                )
                 if has_watermark_col:
                     result = run_incremental_table(spark, jdbc_url, props, job, progress)
                 elif args.no_updated_at_mode == "overwrite":
                     result = run_full_snapshot_table(spark, jdbc_url, props, job, progress)
                 else:
-                    result = {"table": job.source_fqtn, "kind": "SKIPPED", "rows": 0, "chunks": 0, "status": f"no {job.updated_at_col} column", "elapsed": timedelta(0)}
+                    result = {
+                        "table": job.source_fqtn,
+                        "kind": "SKIPPED",
+                        "rows": 0,
+                        "chunks": 0,
+                        "status": f"no {job.updated_at_col} column",
+                        "elapsed": timedelta(0),
+                    }
             except Exception as e:
-                log.exception(f"Failed extracting {job.source_fqtn}")  # full traceback goes to the log file
-                result = {"table": job.source_fqtn, "kind": "ERROR", "rows": 0, "chunks": 0, "status": f"error: {short_error(e)}", "elapsed": timedelta(0)}
+                log.exception(
+                    f"Failed extracting {job.source_fqtn}"
+                )  # full traceback goes to the log file
+                result = {
+                    "table": job.source_fqtn,
+                    "kind": "ERROR",
+                    "rows": 0,
+                    "chunks": 0,
+                    "status": f"error: {short_error(e)}",
+                    "elapsed": timedelta(0),
+                }
             results.append(result)
             if overall is not None:
                 progress.advance(overall)
@@ -951,12 +1138,23 @@ def main() -> None:
     total_rows = 0
     for r in results:
         total_rows += r["rows"]
-        summary.add_row(r["table"], r["kind"], f"{r['rows']:,}", str(r["chunks"]), r["status"], f"{r['elapsed'].total_seconds():.1f}s")
+        summary.add_row(
+            r["table"],
+            r["kind"],
+            f"{r['rows']:,}",
+            str(r["chunks"]),
+            r["status"],
+            f"{r['elapsed'].total_seconds():.1f}s",
+        )
 
     console.print(summary)
-    console.print(f"[bold green]Done.[/bold green] {total_rows:,} rows across {len(results)} table(s).")
+    console.print(
+        f"[bold green]Done.[/bold green] {total_rows:,} rows across {len(results)} table(s)."
+    )
 
-    log.info(f"pg_extract_incremental complete: {len(results)} table(s), {total_rows} rows, dry_run={args.dry_run}")
+    log.info(
+        f"pg_extract_incremental complete: {len(results)} table(s), {total_rows} rows, dry_run={args.dry_run}"
+    )
     spark.stop()
 
 

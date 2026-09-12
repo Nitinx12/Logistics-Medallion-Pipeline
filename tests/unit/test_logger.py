@@ -5,13 +5,11 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from src.utils.logger import get_logger, BASE_DIR
+from src.utils.logger import get_logger
 
 
 def test_get_logger_creates_handlers(tmp_path):
@@ -79,7 +77,11 @@ def test_get_logger_console_level_defaults():
     name = "test_logger_console_default"
     logger = get_logger(name, level=logging.INFO)
     # console handler level should equal level when console_level is None
-    console_h = next(h for h in logger.handlers if isinstance(h, logging.StreamHandler) and not hasattr(h, "when"))
+    console_h = next(
+        h
+        for h in logger.handlers
+        if isinstance(h, logging.StreamHandler) and not hasattr(h, "when")
+    )
     assert console_h.level == logging.INFO
     for h in list(logger.handlers):
         logger.removeHandler(h)

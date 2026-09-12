@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Ask a question
+    url: https://github.com/Nitinx12/Logistics-Medallion-Pipeline/discussions
+    about: Use discussions for questions about setup or pipeline behavior

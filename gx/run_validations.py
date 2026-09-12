@@ -33,7 +33,6 @@ import pandas as pd
 
 try:
     import great_expectations as gx
-    from great_expectations.core.expectation_suite import ExpectationSuite
 
     GX_AVAILABLE = True
     GX_VERSION = gx.__version__
@@ -95,8 +94,6 @@ def _eval_expectation(df: pd.DataFrame, exp: dict[str, Any]) -> dict[str, Any]:
             dupes = int(df.duplicated(subset=[col]).sum())
             return {"success": dupes == 0, "observed": dupes, "details": f"dupes={dupes}"}
         if exp_type == "expect_column_values_to_match_regex":
-            import re
-
             pattern = kwargs.get("regex", "")
             assert col in df.columns
             vals = df[col].dropna().astype(str)
@@ -266,13 +263,17 @@ def validate_postgres(suite_name: str, table: str) -> dict[str, Any] | None:
         if df is None or df.empty:
             # try unqualified
             try:
-                q = text(f'SELECT * FROM {sql_table} LIMIT 10000')
+                q = text(f"SELECT * FROM {sql_table} LIMIT 10000")
                 with engine.connect() as conn:
                     df = pd.read_sql(q, conn)
             except Exception as e:
                 last_err = e
         if df is None or df.empty:
-            return {"suite": suite_name, "success": None, "error": f"no data or table not found: {last_err}"}
+            return {
+                "suite": suite_name,
+                "success": None,
+                "error": f"no data or table not found: {last_err}",
+            }
         return validate_dataframe(df, suite)
     except Exception as e:
         return {"suite": suite_name, "success": None, "error": str(e)}
@@ -286,13 +287,21 @@ def print_result(res: dict[str, Any]) -> None:
     elif ok is False:
         # if all failures are warn, surface as WARN at suite level
         results = res.get("results", [])
-        has_error = any(not r["success"] and r.get("meta", {}).get("severity") != "warn" for r in results)
+        has_error = any(
+            not r["success"] and r.get("meta", {}).get("severity") != "warn" for r in results
+        )
         label = "FAIL" if has_error else "WARN"
         print(f"  {label} {suite}")
     else:
         print(f"  SKIP {suite}: {res.get('error', 'no result')}")
     for r in res.get("results", []):
-        mark = "PASS" if r["success"] else "WARN" if r.get("meta", {}).get("severity") == "warn" else "FAIL"
+        mark = (
+            "PASS"
+            if r["success"]
+            else "WARN"
+            if r.get("meta", {}).get("severity") == "warn"
+            else "FAIL"
+        )
         print(f"    {mark} {r['expectation_type']} {r['kwargs']} -> {r['details']}")
 
 
@@ -300,7 +309,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="FreightLake Great Expectations runner")
     parser.add_argument("--suite", help="single suite name e.g. silver.customers")
     parser.add_argument("--all", action="store_true", help="validate all suites")
-    parser.add_argument("--layer", choices=["silver", "gold"], help="restrict --all to one medallion layer")
+    parser.add_argument(
+        "--layer", choices=["silver", "gold"], help="restrict --all to one medallion layer"
+    )
     parser.add_argument("--demo", action="store_true", help="use synthetic pandas data, no DB")
     parser.add_argument("--postgres", action="store_true", help="validate live Postgres tables")
     parser.add_argument("--bad-demo", action="store_true", help="inject bad rows to demo failures")
@@ -340,7 +351,10 @@ def main() -> int:
                 print_result(res)
                 if res["success"] is False:
                     # warn only suites may fail expected, check severity
-                    has_error = any(not r["success"] and r.get("meta", {}).get("severity") != "warn" for r in res["results"])
+                    has_error = any(
+                        not r["success"] and r.get("meta", {}).get("severity") != "warn"
+                        for r in res["results"]
+                    )
                     if has_error:
                         exit_code = 1
             except FileNotFoundError as e:
@@ -365,7 +379,7 @@ def main() -> int:
                 if res.get("success") is False:
                     exit_code = 1
                 if res.get("success") is None:
-                    print(f"    hint: is Postgres running? check POSTGRES_HOST in .env")
+                    print("    hint: is Postgres running? check POSTGRES_HOST in .env")
         except Exception as e:
             print(f"  Postgres unavailable: {e}")
             print("  This is a failed gate, not a skipped one: fix Postgres or run")

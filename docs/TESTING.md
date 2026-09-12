@@ -31,20 +31,31 @@ Unit test highlights:
 ```bash
 # fast local loop
 uv run pytest tests/unit tests/gx_tests -q
+make test
 
 # one file
 uv run pytest tests/unit/test_pg_extract_incremental.py -q
 
 # lint and types
 uv run ruff check .
+uv run ruff format --check .
 uv run sqlfluff lint
-uv run mypy .
+uv run mypy src --ignore-missing-imports
+make lint
+make lint-fix   # auto fix
+make fmt        # format only
+
+# with coverage
+make test-cov
+uv run pytest --cov=src --cov-report=term-missing
 
 # dbt tests (needs the Databricks warehouse from .env)
 cd dbt && uv run dbt test --profiles-dir .
 
 # the whole gate, same order CI uses
 scripts/bash/run_all_tests.sh
+make verify     # lint + test + GX demo, same as CI
+make ci         # alias for verify
 ```
 
 ## run_all_tests.sh
@@ -68,18 +79,26 @@ back to `uv run dbt`.
 
 ## CI
 
-GitHub Actions is planned (phase 14 in `docs/PROJECT_PLAN.md`): a pull
-request workflow that runs `scripts/bash/run_all_tests.sh` plus the GX
-demo validations, which need no database:
+GitHub Actions is now wired up. Six workflows run on pull requests to `main`:
 
-```yaml
-- run: uv sync --all-extras
-- run: uv run python gx/run_validations.py --demo
-- run: scripts/bash/run_all_tests.sh
+| Workflow | File | Trigger | What it does |
+|---|---|---|---|
+| CI | `.github/workflows/ci.yml` | PR and push to `main` | Full gate: ruff, format, sqlfluff, mypy, pytest, GX demo, dbt parse and docs, secrets scan |
+| Lint | `.github/workflows/lint.yml` | PR touching `**.py` | `ruff check` and `ruff format --check` |
+| Unit Tests | `.github/workflows/unit-tests.yml` | PR touching `src/` or `tests/` | `pytest` with coverage plus GX demo and DAG parse |
+| SQL and Types | `.github/workflows/sql-and-types.yml` | PR touching `**.sql` or `dbt/` | `sqlfluff lint`, `dbt parse` and docs, `mypy` type check |
+| Security | `.github/workflows/security.yml` | PR, push, weekly schedule | Secrets scan, dependency review, CodeQL |
+| CI Full | `.github/workflows/ci-full.yml` | Manual or push to `main` touching `dbt/` | Full gate with real Databricks warehouse via `scripts/bash/run_all_tests.sh` |
+
+Locally the same gates are available:
+
+```bash
+make verify   # lint + test + GX demo, same as CI
+make ci       # alias for verify
+make test-cov # pytest with coverage
 ```
 
-Until it is wired up, run the script locally before opening a pull request
-(the definition of done in `AGENTS.md`).
+The full gate `scripts/bash/run_all_tests.sh` remains the blocking check for warehouse backed `dbt test`. Run it before opening a pull request when dbt models changed.
 
 ## Testing conventions
 

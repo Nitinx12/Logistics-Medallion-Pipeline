@@ -6,16 +6,17 @@ from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 # Base directory for the project - repo root (src/utils -> src -> repo)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+
 def get_logger(
-    name: str = "app", 
-    level: int = logging.INFO, 
+    name: str = "app",
+    level: int = logging.INFO,
     console_level: int | None = None,
     sub_folder: str = "",
-    long_running: bool = False
+    long_running: bool = False,
 ) -> logging.Logger:
     """
     Creates an advanced logger with console and file handlers.
-    
+
     Args:
         name: The name of the logger (usually the module name).
         level: The logging level for the file handler.
@@ -56,12 +57,12 @@ def get_logger(
             os.path.join(log_dir, log_filename),
             when="midnight",
             interval=1,
-            backupCount=14, # Keep 14 days of logs
+            backupCount=14,  # Keep 14 days of logs
             encoding="utf-8",
         )
     else:
         # Better for Cronjobs/Scripts: Rotates based on file size (5MB)
-        today = datetime.now().astimezone().strftime('%Y-%m-%d')
+        today = datetime.now().astimezone().strftime("%Y-%m-%d")
         log_filename = f"{name}_{today}.log"
         file_handler = RotatingFileHandler(
             os.path.join(log_dir, log_filename),
@@ -69,7 +70,7 @@ def get_logger(
             backupCount=5,
             encoding="utf-8",
         )
-        
+
     file_handler.setLevel(level)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)

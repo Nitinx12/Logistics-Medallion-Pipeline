@@ -1,0 +1,31 @@
+# FreightLake git attributes
+# Normalize line endings and mark generated files
+
+* text=auto eol=lf
+
+# shell scripts keep lf and are not diffed as binary
+*.sh text eol=lf
+*.ps1 text eol=lf
+
+# sql and python are text
+*.sql text
+*.py text
+*.yml text
+*.yaml text
+*.md text
+*.json text
+
+# generated or vendored paths
+dbt/target/** linguist-generated=true
+dbt/dbt_packages/** linguist-generated=true
+uv.lock linguist-generated=true
+spark-warehouse/** linguist-generated=true
+
+# images are binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.mp4 binary
+
+# keep diff readable for notebooks if any appear
+*.ipynb diff=ipynb

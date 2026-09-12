@@ -6,7 +6,7 @@ Covers AGENTS.md quality gate: watermark filtering and upsert merge condition.
 
 import argparse
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -150,7 +150,12 @@ def test_build_job_config_since_parsing():
 
 
 def test_is_uc_managed_blocked_markers():
-    for marker in ["ErrorCode: 5108", "ErrorCode: 5105", "createStagingTable", "UNITY_CATALOG_EXTERNAL_CREATE_TABLE_REQUEST_FOR_NON_EXTERNAL_TABLE_DENIED"]:
+    for marker in [
+        "ErrorCode: 5108",
+        "ErrorCode: 5105",
+        "createStagingTable",
+        "UNITY_CATALOG_EXTERNAL_CREATE_TABLE_REQUEST_FOR_NON_EXTERNAL_TABLE_DENIED",
+    ]:
         assert pg._is_uc_managed_blocked(Exception(marker)) is True
     assert pg._is_uc_managed_blocked(Exception("some random error")) is False
 

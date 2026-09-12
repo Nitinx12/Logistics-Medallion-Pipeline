@@ -1,0 +1,70 @@
+name: security
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # weekly Monday 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets-scan:
+    name: secrets scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: check for committed secrets
+        run: |
+          echo "Scanning diff for likely secrets..."
+          if git diff --name-only origin/main...HEAD 2>/dev/null | grep -E "^\.env$|^\.env\."; then
+            echo "::error::.env file appears in diff. Remove it and use .env.example instead."
+            exit 1
+          fi
+          if grep -R --include="*.yml" --include="*.yaml" "host:.*azuredatabricks" dbt/profiles.yml 2>/dev/null | grep -v "env_var" | grep -q .; then
+            echo "::error::dbt/profiles.yml appears to contain hardcoded credentials. Use env_var() instead."
+            exit 1
+          fi
+          if grep -R "DATABRICKS_TOKEN" --include="*.py" --include="*.yml" src/ airflow/ 2>/dev/null | grep -v "env_var" | grep -v "os.getenv" | grep -q .; then
+            echo "::warning::Possible hardcoded token reference found. Verify it reads from environment."
+          fi
+          echo "No obvious secrets found."
+
+  dependency-review:
+    name: dependency review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: dependency review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  codeql:
+    name: codeql
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    timeout-minutes: 15
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: python
+      - uses: github/codeql-action/analyze@v3

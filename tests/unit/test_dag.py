@@ -1,6 +1,5 @@
 """tests/unit/test_dag.py - verify Airflow DAG parses without scheduler"""
 
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +8,7 @@ import pytest
 # Mock airflow if not installed
 try:
     import airflow  # noqa: F401
+
     HAS_AIRFLOW = True
 except ImportError:
     HAS_AIRFLOW = False
@@ -26,6 +26,7 @@ def test_dag_import_with_airflow():
     if not HAS_AIRFLOW:
         pytest.skip("airflow not installed")
     import importlib.util
+
     for dag_file, expected_id in zip(DAG_FILES, EXPECTED_DAG_IDS):
         try:
             spec = importlib.util.spec_from_file_location(expected_id, Path(dag_file))
@@ -50,6 +51,7 @@ def test_bronze_tasks_parallel():
 
 def test_dag_count_is_three():
     import glob
+
     assert len(glob.glob("airflow/dags/freightlake_*.py")) == 3
     assert len(EXPECTED_DAG_IDS) == 3
 
@@ -67,14 +69,20 @@ def test_dag_structure_mocked():
     mock_dag.__enter__ = MagicMock(return_value=mock_dag)
     mock_dag.__exit__ = MagicMock(return_value=False)
 
-    with patch.dict("sys.modules", {
-        "airflow": MagicMock(DAG=lambda *a, **kw: mock_dag),
-        "airflow.operators.bash": MagicMock(BashOperator=lambda *a, **kw: mock_bash),
-        "airflow.operators.python": MagicMock(PythonOperator=lambda *a, **kw: mock_python),
-        "airflow.sensors": MagicMock(),
-        "airflow.sensors.external_task": MagicMock(ExternalTaskSensor=lambda *a, **kw: mock_bash),
-    }):
+    with patch.dict(
+        "sys.modules",
+        {
+            "airflow": MagicMock(DAG=lambda *a, **kw: mock_dag),
+            "airflow.operators.bash": MagicMock(BashOperator=lambda *a, **kw: mock_bash),
+            "airflow.operators.python": MagicMock(PythonOperator=lambda *a, **kw: mock_python),
+            "airflow.sensors": MagicMock(),
+            "airflow.sensors.external_task": MagicMock(
+                ExternalTaskSensor=lambda *a, **kw: mock_bash
+            ),
+        },
+    ):
         import importlib.util
+
         for dag_file in DAG_FILES:
             spec = importlib.util.spec_from_file_location("freightlake_dag_mock", Path(dag_file))
             mod = importlib.util.module_from_spec(spec)  # type: ignore

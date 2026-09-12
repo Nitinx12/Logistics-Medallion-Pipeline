@@ -1,0 +1,44 @@
+#!/bin/bash
+# FreightLake pre-commit hook
+# Install with: git config core.hooksPath .githooks
+# Or run: scripts/bash/setup_hooks.sh
+
+set -e
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+echo "[pre-commit] ruff check"
+if command -v uv >/dev/null 2>&1; then
+  uv run ruff check . --quiet
+else
+  ruff check . --quiet
+fi
+
+# block direct commit of secrets
+if git diff --cached --name-only | grep -q "^\.env$"; then
+  echo "[pre-commit] ERROR: .env is staged. Unstage it: git restore --staged .env"
+  exit 1
+fi
+
+if git diff --cached --name-only | grep -q "^\.env\."; then
+  echo "[pre-commit] ERROR: .env.* file is staged. Only .env.example should be committed."
+  exit 1
+fi
+
+# block hardcoded databricks credentials in dbt/profiles.yml
+if git diff --cached --name-only | grep -q "dbt/profiles.yml"; then
+  if git diff --cached dbt/profiles.yml | grep -E "host:.*azuredatabricks|token:" | grep -v "env_var" >/dev/null; then
+    echo "[pre-commit] ERROR: dbt/profiles.yml appears to contain hardcoded credentials. Use env_var() instead."
+    exit 1
+  fi
+fi
+
+# warn if lockfile is out of sync
+if git diff --cached --name-only | grep -q "pyproject.toml"; then
+  if ! git diff --cached --name-only | grep -q "uv.lock"; then
+    echo "[pre-commit] WARN: pyproject.toml changed but uv.lock not staged. Run uv sync and stage uv.lock."
+  fi
+fi
+
+echo "[pre-commit] ok"

@@ -6,14 +6,15 @@ We import via importlib to control env vars per test.
 
 import importlib.util
 import os
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
 
 def load_engine_with_env(env: dict):
     # reload engine module with patched env, isolated from OS env and real .env
-    spec = importlib.util.spec_from_file_location("engine_under_test", Path(__file__).resolve().parents[2] / "src" / "utils" / "engine.py")
+    spec = importlib.util.spec_from_file_location(
+        "engine_under_test", Path(__file__).resolve().parents[2] / "src" / "utils" / "engine.py"
+    )
     mod = importlib.util.module_from_spec(spec)  # type: ignore
     # clear=True ensures no leftover OS env interferes; do not read real .env
     with patch.dict(os.environ, env, clear=True):
@@ -103,4 +104,6 @@ def test_engine_warns_on_missing_optional():
     }
     mod, w = load_engine_with_env(env)
     # should warn about missing optional schemas and databricks
-    assert any("bronze/silver/gold" in str(x.message) for x in w) or any("Databricks" in str(x.message) for x in w)
+    assert any("bronze/silver/gold" in str(x.message) for x in w) or any(
+        "Databricks" in str(x.message) for x in w
+    )

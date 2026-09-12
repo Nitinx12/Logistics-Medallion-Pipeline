@@ -87,7 +87,9 @@ BRONZE_WRITE_MODE = os.getenv("BRONZE_WRITE_MODE", "warehouse").strip().lower()
 BRONZE_LOCAL_PATH = os.getenv("BRONZE_LOCAL_PATH", "./spark-warehouse/bronze")
 DATABRICKS_EXTERNAL_LOCATION = os.getenv("DATABRICKS_EXTERNAL_LOCATION")
 # Optional explicit external table base location, e.g. s3://bucket/freightlake/bronze
-DATABRICKS_EXTERNAL_BASE_PATH = os.getenv("DATABRICKS_EXTERNAL_BASE_PATH", DATABRICKS_EXTERNAL_LOCATION or "")
+DATABRICKS_EXTERNAL_BASE_PATH = os.getenv(
+    "DATABRICKS_EXTERNAL_BASE_PATH", DATABRICKS_EXTERNAL_LOCATION or ""
+)
 
 
 # =========================================================
@@ -151,7 +153,6 @@ _missing_databricks = [k for k, v in _optional_databricks.items() if not v]
 
 if _missing_databricks:
     warnings.warn(
-        "Not set (only needed if you connect to Databricks): "
-        f"{', '.join(_missing_databricks)}",
+        f"Not set (only needed if you connect to Databricks): {', '.join(_missing_databricks)}",
         stacklevel=2,
     )

@@ -130,8 +130,7 @@ def get_databricks_connection():
         missing = [name for name, value in required.items() if not value]
         if missing:
             raise OSError(
-                f"Missing required environment variables for Databricks: "
-                f"{', '.join(missing)}"
+                f"Missing required environment variables for Databricks: {', '.join(missing)}"
             )
 
         log.info(f"Opening Databricks connection to '{config.DATABRICKS_HOST}'")
