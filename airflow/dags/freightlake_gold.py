@@ -3,9 +3,10 @@ freightlake_gold.py
 ==================
 Gold DAG: Silver -> Gold star -> PG_MART
 
-  SILVER -- dbt star schema --> GOLD -- PySpark publish --> PG_MART --> BI
-  + GX validation after Gold
-  + Airflow orchestrates GOLD and PG_MART
+  SILVER -- dbt star schema --> GOLD -- GX gate --> PySpark publish --> PG_MART --> BI
+
+Chained after the silver DAG via ExternalTaskSensor on gx_silver, so gold
+never builds before silver passed its quality gate.
 """
 
 from datetime import datetime, timedelta
@@ -13,9 +14,23 @@ from pathlib import Path
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
+from airflow.sensors.external_task import ExternalTaskSensor
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+
+def _repo_root() -> Path:
+    """Repo root that works locally and inside the Airflow container.
+
+    See freightlake_bronze._repo_root for why parents[2] alone is wrong once
+    the dags folder is mounted at /opt/airflow/dags by docker/compose.yml.
+    """
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "src" / "jobs").is_dir() and (parent / "dbt" / "dbt_project.yml").is_file():
+            return parent
+    return here.parents[2]
+
+
+REPO_ROOT = _repo_root()
 
 default_args = {
     "owner": "freightlake",
@@ -34,40 +49,41 @@ with DAG(
     doc_md=__doc__,
 ) as dag:
 
+    wait_for_silver = ExternalTaskSensor(
+        task_id="wait_for_silver",
+        external_dag_id="freightlake_silver",
+        external_task_id="gx_silver",
+        poke_interval=60,
+        timeout=timedelta(hours=2),
+        mode="reschedule",
+        doc_md="Wait for silver plus its GX gate before building gold.",
+    )
+
     gold = BashOperator(
         task_id="gold",
-        bash_command="cd dbt && dbt build --select tag:gold",
+        bash_command="cd dbt && uv run dbt build --select tag:gold",
         cwd=str(REPO_ROOT),
         doc_md="SILVER -- dbt star schema --> GOLD",
     )
 
+    # No --demo fallback on purpose: a failed Postgres validation must fail
+    # this task, otherwise the quality gate can never block promotion.
     gx_gold = BashOperator(
         task_id="gx_gold",
-        bash_command="uv run python gx/run_validations.py --all --postgres || uv run python gx/run_validations.py --demo",
+        bash_command="uv run python gx/run_validations.py --postgres --layer gold",
         cwd=str(REPO_ROOT),
-        doc_md="GX check whether gold satisfies defined rules",
+        doc_md="GX gate for all gold rules, fails the DAG on error severity",
     )
 
-    def _publish_mart(**context):
-        from src.jobs.publish_gold_to_postgres import build_spark_session, publish_table, resolve_write_mode
-        import src.utils.engine as config
-
-        catalog = getattr(config, "DATABRICKS_CATALOG", "freightlake")
-        mart_schema = getattr(config, "POSTGRES_SCHEMA_GOLD", "gold") or "gold"
-        write_mode = resolve_write_mode("auto")
-        spark = build_spark_session(catalog, write_mode)
-        try:
-            from src.jobs.publish_gold_to_postgres import DEFAULT_GOLD_TABLES
-
-            for tbl in DEFAULT_GOLD_TABLES:
-                publish_table(spark, tbl, catalog, "gold", mart_schema, write_mode, str(REPO_ROOT / "spark-warehouse" / "gold"), dry_run=False)
-        finally:
-            spark.stop()
-
-    mart_publish = PythonOperator(
+    # BashOperator + the job's own CLI instead of importing the job into the
+    # scheduler process: the scheduler interpreter is the container's system
+    # Python, which does not have pyspark. uv run uses the project venv.
+    mart_publish = BashOperator(
         task_id="mart_publish",
-        python_callable=_publish_mart,
+        bash_command="uv run python -m src.jobs.publish_gold_to_postgres",
+        cwd=str(REPO_ROOT),
         doc_md="GOLD -- PySpark publish --> PG_MART (serving mart for BI)",
+        execution_timeout=timedelta(hours=1),
     )
 
-    gold >> gx_gold >> mart_publish
+    wait_for_silver >> gold >> gx_gold >> mart_publish

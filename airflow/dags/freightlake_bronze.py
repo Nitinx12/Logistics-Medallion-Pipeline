@@ -1,6 +1,6 @@
 """
 freightlake_bronze.py
-====================
+=====================
 Bronze DAG: Sources -> Bronze Delta with parallel watermark ingestion.
 
 Tasks perform in parallel (per request):
@@ -8,7 +8,7 @@ Tasks perform in parallel (per request):
   MONGO -- PySpark connector watermark event_ts --> BRONZE (bronze_mongo)
 
 Both bronze tasks run in parallel, downstream silver is triggered via
-TriggerDagRunOperator or schedule after success.
+ExternalTaskSensor in freightlake_silver after success.
 """
 
 from datetime import datetime, timedelta
@@ -17,7 +17,24 @@ from pathlib import Path
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+
+def _repo_root() -> Path:
+    """Repo root that works locally and inside the Airflow container.
+
+    Locally this file lives at <repo>/airflow/dags/freightlake_bronze.py so
+    parents[2] is the repo root. In docker/compose.yml the same file is
+    mounted at /opt/airflow/dags/ and the jobs live under /opt/airflow, so
+    parents[2] would wrongly resolve to /opt. Walk up until the marker
+    directories are found instead of trusting a fixed number of levels.
+    """
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        if (parent / "src" / "jobs").is_dir() and (parent / "dbt" / "dbt_project.yml").is_file():
+            return parent
+    return here.parents[2]
+
+
+REPO_ROOT = _repo_root()
 
 default_args = {
     "owner": "freightlake",

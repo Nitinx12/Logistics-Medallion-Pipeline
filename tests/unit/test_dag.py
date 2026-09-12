@@ -71,6 +71,8 @@ def test_dag_structure_mocked():
         "airflow": MagicMock(DAG=lambda *a, **kw: mock_dag),
         "airflow.operators.bash": MagicMock(BashOperator=lambda *a, **kw: mock_bash),
         "airflow.operators.python": MagicMock(PythonOperator=lambda *a, **kw: mock_python),
+        "airflow.sensors": MagicMock(),
+        "airflow.sensors.external_task": MagicMock(ExternalTaskSensor=lambda *a, **kw: mock_bash),
     }):
         import importlib.util
         for dag_file in DAG_FILES:
