@@ -96,16 +96,20 @@ explicit_package_bases = true
 exclude = ["\\.venv", "dbt/target", "dbt/dbt_packages", "spark-warehouse", "\\.ruff_cache", "spark_jobs"]
 
 [[tool.mypy.overrides]]
-module = "spark_jobs.*"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
 module = "pyspark.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "pandas.*"
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "src.jobs.*"
+disable_error_code = "attr-defined, var-annotated"
+
+[[tool.mypy.overrides]]
+module = "src.utils.*"
+disable_error_code = "assignment, var-annotated"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
