@@ -13,62 +13,74 @@ dbt). You review; you do not fix. Point out exactly what to change and where.
 When invoked:
 1. Run `git diff` (or `git diff --staged`) to see what changed.
 2. Focus only on the modified files and anything they directly touch (e.g. a
-   changed dbt model's schema.yml, a changed Spark job's watermark table
-   usage).
+   changed dbt model's `_silver.yml`/`_gold.yml` tests, a changed Spark
+   job's watermark handling).
 3. Begin the review immediately — don't ask for scope up front.
 
 ## Review checklist, by area
 
-**Bronze PySpark jobs (`spark_jobs/bronze/`, `spark_jobs/publish/`)**
-- Reads go through the watermark table (`etl_watermark`); no full-table
-  rereads that would reprocess unchanged rows.
-- Writes are `MERGE INTO` upserts keyed on a business or event id — flag any
-  `INSERT`/`overwrite` path that would break idempotency on rerun.
-- Bronze does type casting plus `_loaded_at` only — flag cleaning or business
-  logic that belongs in silver instead.
-- Delta tables partitioned by ingestion date.
+**Bronze PySpark jobs (`src/jobs/`)**
+- Incremental reads use the watermark: `MAX(updated_at)` from the target
+  table, with the full vs incremental lower bound logic in
+  `build_windows()` respected — flag any change that would reprocess rows
+  already captured or skip tied timestamp rows on a full load.
+- Bronze writes are append log writes; idempotency comes from the watermark
+  plus silver dedup/merge. Flag cleaning or business logic in bronze that
+  belongs in silver.
+- Write mode routing (`BRONZE_WRITE_MODE`: warehouse, local, uc_managed,
+  uc_external) stays intact, including the 403 fallback to warehouse.
 - No hardcoded credentials; connection details come from environment
-  variables via `spark_jobs/utils/connection.py`.
+  variables via `src/utils/engine.py` and `src/utils/connections.py`.
 
 **Silver dbt models (`dbt/models/silver/`)**
-- `dim_driver` / `dim_vehicle` changes preserve the SCD Type 2 shape
-  (`valid_from`, `valid_to`, `is_current`) via `dbt snapshot` — flag any
-  history-tracking logic that reinvents this pattern.
-- Every model has schema tests: not null, unique, relationships, accepted
-  values as appropriate. Flag untested new columns, especially foreign keys.
-- Naming follows `stg_*` / `dim_*` / snapshot conventions already in the
-  project.
+- Incremental merge models keep `unique_key` on the primary key and the
+  `ROW_NUMBER` dedup on `updated_at DESC` — flag any change that could
+  produce duplicate primary keys.
+- `dim_customers` history stays SCD Type 2 via
+  `dbt/snapshots/customers_snapshot.sql` — flag any history tracking logic
+  that reinvents the snapshot.
+- Every model has schema tests in `_silver.yml`: not null, unique,
+  relationships, accepted values. Flag untested new columns, especially
+  foreign keys.
+- Naming follows the existing conventions (silver models use source table
+  names, no `stg_` prefix).
 
 **Gold dbt models (`dbt/models/gold/`)**
-- Strict star schema: new columns land on an existing `fct_*`/`dim_*` model
+- Strict star schema: new columns land on an existing `fact_*`/`dim_*` model
   rather than spawning an unplanned table.
-- Metric logic (on time delivery rate, average delivery time, revenue per
-  route) lives only in `metrics.yml` — flag any metric recomputed inline in
-  a model, script, or dashboard query instead of referencing the shared
-  definition.
+- Shared aggregates live in `fact_operations` — flag any aggregate
+  recomputed inline in another model or a dashboard query instead of
+  referencing the shared definition.
+- Surrogate key joins keep the UNKNOWN fallback and `is_unmatched_*` flags.
 
 **Airflow DAGs (`airflow/dags/`)**
-- Exactly three DAGs, chained with `ExternalTaskSensor`/asset scheduling in
-  the documented order: bronze -> silver_gold -> publish.
-- Bronze DAG SLA and source freshness checks are intact, not silently
-  dropped.
+- Exactly three DAGs, chained with `ExternalTaskSensor` in the documented
+  order: `freightlake_bronze` -> `freightlake_silver` -> `freightlake_gold`.
+- Bronze's two extraction tasks stay parallel, with no accidental
+  dependency between them.
+- dbt selections use `tag:silver` / `tag:gold`, which are assigned in
+  `dbt/dbt_project.yml` — flag a selection that would match nothing.
+- GX tasks validate against live Postgres with no `--demo` fallback: a
+  failed gate must fail the DAG.
 
 **SQL / Python style**
 - SQL lints clean under `sqlfluff` with the correct dialect: `postgres` for
-  `sql/oltp_schema/` and `sql/serving_mart/`, `databricks`/`sparksql` for dbt
-  models.
-- Python is `ruff` and `mypy` clean, managed through `uv` (no bare `pip`
-  usage introduced).
+  `sql/oltp_schema/` and `sql/serving_mart/`, `databricks`/`sparksql` for
+  dbt models.
+- Python is `ruff` clean, managed through `uv` (no bare `pip` usage
+  introduced).
 - Bash/PowerShell script pairs stay in sync — a change to `scripts/bash/*.sh`
   without the matching `scripts/powershell/*.ps1` update is a defect.
 
 **Data quality gate**
-- Changes to tests or GX expectations don't quietly weaken the 95% pass-rate
-  gate between silver and gold.
+- Changes to tests or GX expectations don't quietly weaken the gate between
+  silver and gold, and don't promote a `warn` to passing without flagging
+  the known issue it documents.
 
 **Secrets and config**
-- No tokens, connection strings, or passwords committed. `.env.example` and
-  `dbt/profiles.yml.example` stay placeholder-only.
+- No tokens, connection strings, or passwords committed. `.env.example`
+  stays placeholder only and `dbt/profiles.yml` reads everything from
+  `env_var()`.
 
 ## Output format
 

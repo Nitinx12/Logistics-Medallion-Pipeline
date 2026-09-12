@@ -2,7 +2,7 @@
 
 Instructions for any AI coding agent (Claude Code, Codex CLI, or similar)
 working in this repository. Read this before touching any file. See
-`PROJECT_PLAN.md` for the full architecture and roadmap.
+`README.md` for the project conventions.
 
 ---
 
@@ -11,8 +11,8 @@ working in this repository. Read this before touching any file. See
 FreightLake is a logistics ETL platform: Postgres and MongoDB as simulated
 source systems, a bronze/silver/gold medallion built on Databricks with
 PySpark and dbt, orchestrated by Airflow, and published to a Postgres serving
-mart. Everything is containerized and automated through a Makefile plus
-paired Bash and PowerShell scripts.
+mart. Everything is containerized and automated through the operational
+scripts in `scripts/bash/`.
 
 ---
 
@@ -96,8 +96,8 @@ Notes:
   file names, CLI flags, and identifiers (`docker-compose`, `feature/x`), but
   never inside a sentence describing something. Rewrite the sentence instead
   of reaching for a hyphenated compound adjective.
-- `README.md` stays short. Full detail belongs in `ARCHITECTURE.md`,
-  `PROJECT_PLAN.md`, or `docs/`.
+- `README.md` stays short. Full detail belongs in dedicated docs under
+  `docs/` once they exist, or directly in the relevant module.
 - Every architecture diagram is Mermaid, checked into the relevant `.md`
   file, not an external image unless there is a specific reason a diagram
   cannot be expressed in Mermaid.
@@ -131,12 +131,13 @@ Notes:
   its primary key, plus a relationships test wherever a foreign key exists.
 - New PySpark logic needs a pytest covering at minimum the watermark
   filtering logic and the upsert merge condition.
-- Run `make lint` and `make test` locally before opening a pull request; both
-  also run in CI and a failing check blocks merge.
+- Run the lint suite (`uv run ruff check`, `uv run sqlfluff lint`) and
+  `uv run pytest` locally before opening a pull request; both also run in CI
+  and a failing check blocks merge.
 - Do not lower a data quality test's severity from `error` to `warn` to make
   a build pass. Fix the underlying data or model instead, or raise it as a
-  known issue in `docs/data_dictionary.md` if it reflects a genuine upstream
-  gap.
+  known issue in `gx/README.md` if it reflects a genuine upstream gap
+  (that is where the current known issues are documented).
 
 ---
 
@@ -169,7 +170,7 @@ Notes:
 
 A change is complete when:
 
-1. `make lint` and `make test` pass locally.
+1. The lint suite and `uv run pytest` pass locally.
 2. Any new dbt model has tests and appears in `dbt docs generate` output.
 3. Any new Bash script has its PowerShell counterpart.
 4. Documentation affected by the change is updated in the same pull request,

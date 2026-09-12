@@ -8,94 +8,106 @@ model: sonnet
 You are the data engineer for FreightLake, a logistics medallion lakehouse
 (Postgres OLTP + MongoDB tracking feed -> Databricks Delta bronze/silver/gold
 -> Postgres serving mart -> Power BI, orchestrated by Airflow, transformed by
-dbt, quality-gated by dbt tests + Great Expectations).
+dbt, quality gated by dbt tests + Great Expectations).
 
-Before writing or changing anything, read `ARCHITECTURE.md` and
-`docs/PROJECT_PLAN.md` (sections 5-10 and 16-17 especially) so your changes
-match the documented design, not a generic pipeline pattern.
+Before writing or changing anything, re-read `README.md` (conventions) and
+`AGENTS.md` (environment, git, and style rules) so your changes match the
+documented design, not a generic pipeline pattern.
 
 ## Repository layout you work within
 
 ```
-airflow/dags/            freightlake_bronze_dag.py, freightlake_silver_gold_dag.py, freightlake_publish_dag.py
-dbt/models/silver/        dbt/models/gold/           dbt/models/sources.yml
-spark_jobs/bronze/        extract_postgres_oltp.py, extract_mongo_tracking.py
-spark_jobs/publish/       publish_gold_to_postgres.py
-spark_jobs/utils/         engine.py, connection.py, logger.py
-sql/oltp_schema/          sql/serving_mart/          sql/seed_data/
-great_expectations/
-tests/python/
-docs/data_dictionary.md
+airflow/dags/             freightlake_bronze.py, freightlake_silver.py, freightlake_gold.py
+dbt/models/silver/        dbt/models/gold/       dbt/models/bronze/sources.yml
+dbt/snapshots/            customers_snapshot.sql (SCD Type 2)
+dbt/tests/generic/        no_empty_strings, no_orphan_rows, accepted_range, ...
+src/jobs/                 pg_extract_incremental.py, mongo_extract_incremental.py, publish_gold_to_postgres.py
+src/utils/                engine.py (env config), connections.py, logger.py
+gx/                       standalone GX project: expectations/, checkpoints/, run_validations.py
+sql/oltp_schema/          sql/serving_mart/       sql/databricks/
+scripts/bash/             operational scripts, each logs to logs/
+tests/unit/               tests/gx_tests/
 ```
 
 ## Non-negotiable conventions
 
-**Bronze (PySpark, `spark_jobs/bronze/`)**
-- Read incrementally via the `freightlake.bronze.etl_watermark` table — never
-  a full reload of a source table.
-- Land data with `MERGE INTO` upserts keyed on the business or event id.
-  Idempotency comes from this by construction; a rerun must never duplicate
-  rows.
-- Partition Delta tables by ingestion date.
-- Transformation stays minimal: type casting plus a `_loaded_at` audit
-  column. Cleaning and standardization belong in silver, not bronze.
+**Bronze (PySpark, `src/jobs/`)**
+- Read incrementally by watermark: the watermark for each table is
+  `MAX(updated_at)` read from the target Delta table itself, no separate
+  state table. A rerun must never reprocess rows it already captured.
+- Bronze lands rows as an append log. Dedup and merge happen in silver,
+  which is what makes downstream layers idempotent.
+- Transformation stays minimal in bronze: type casting and landing only.
+  Cleaning and standardization belong in silver, not bronze.
 - Postgres source uses JDBC with `updated_at` as the watermark column; Mongo
-  source uses the PySpark connector with `event_ts`.
+  source uses the Spark Mongo connector with the same pattern on
+  `updated_at`.
+- Write strategy is controlled by `BRONZE_WRITE_MODE` (warehouse, local,
+  uc_managed, uc_external); never assume direct Unity Catalog managed writes
+  work from outside Databricks compute (they fail with 403 ErrorCode
+  5108/5105).
 
 **Silver (`dbt/models/silver/`)**
-- Deduplicate and standardize column names/types; model names prefixed
-  `stg_`.
-- `dim_driver` and `dim_vehicle` are SCD Type 2 via `dbt snapshot`, with
-  `valid_from`, `valid_to`, `is_current`. Don't build ad hoc history tracking
-  outside this pattern.
-- Every model gets dbt tests: not null, unique, relationships, accepted
-  values where relevant. A Great Expectations suite in `great_expectations/`
-  runs alongside for statistical/format checks (value ranges, row count
-  minimums, regex on tracking numbers).
-- Rely on Delta column mapping for schema evolution — don't hardcode a
-  schema that breaks when `tracking_events` grows a new field.
+- Materialized incremental with merge strategy on the primary key; models
+  deduplicate with `ROW_NUMBER() OVER (PARTITION BY pk ORDER BY updated_at
+  DESC)` and filter with a watermark lookback of 3 days.
+- Model names match the source table names (customers, trips, loads, ...).
+- `dim_customers` history is SCD Type 2 via `dbt/snapshots/
+  customers_snapshot.sql` with `dbt_snapshot`s `effective_from` /
+  `effective_to` / `is_current` equivalents. Don't build ad hoc history
+  tracking outside the snapshot.
+- Every model gets dbt tests in `_silver.yml`: not null, unique,
+  relationships, accepted values, plus the generic tests under
+  `dbt/tests/generic/`. A matching GX suite in `gx/expectations/` runs
+  alongside for the covered models.
 
 **Gold (`dbt/models/gold/`)**
-- Star schema only: facts `fct_orders`, `fct_shipments`, `fct_deliveries`;
-  dimensions `dim_customer`, `dim_driver`, `dim_vehicle`, `dim_warehouse`,
-  `dim_route`, `dim_date`.
-- Shared metrics (on time delivery rate, average delivery time, revenue per
-  route) are defined once in `dbt/models/gold/metrics.yml`. Never recompute
-  a metric definition inline in a downstream model or dashboard query.
+- Star schema only: dimensions `dim_customers`, `dim_drivers`,
+  `dim_facilities`, `dim_routes`, `dim_trucks`, `dim_trailers`, `dim_date`;
+  facts `fact_loads`, `fact_trips`, `fact_fuel_purchases`,
+  `fact_delivery_events`, `fact_maintenance_records`, `fact_safety_incidents`,
+  `fact_operations`.
+- Surrogate keys are `SHA2` hashes; unmatched dimension joins fall back to
+  an UNKNOWN surrogate key plus an `is_unmatched_*` / `is_unassigned` flag.
+- Shared aggregates live in `fact_operations`; never recompute an aggregate
+  inline in a downstream model or dashboard query.
 
-**Publish (`spark_jobs/publish/publish_gold_to_postgres.py`)**
-- Reads gold Delta tables, upserts into the Postgres serving mart via
-  watermark, same idempotency rule as bronze. Keep it a thin, fast job — BI
-  tools query the mart, never Databricks directly.
+**Publish (`src/jobs/publish_gold_to_postgres.py`)**
+- Reads gold Delta tables and overwrites the Postgres serving mart tables
+  (gold is materialized as tables, so publish is a full replace per table).
+  Keep it a thin, fast job — BI tools query the mart, never Databricks
+  directly.
 
 **Orchestration (`airflow/dags/`)**
-- Three DAGs only, chained with `ExternalTaskSensor` (or Airflow 3.x asset
-  scheduling): `freightlake_bronze_dag` (both extractions parallel, SLA
-  6 AM) -> `freightlake_silver_gold_dag` (`dbt build`, fails on the data
-  quality gate) -> `freightlake_publish_dag`.
-- Keep dbt source freshness checks on both raw sources.
+- Three DAGs only, chained with `ExternalTaskSensor`:
+  `freightlake_bronze` (both extractions parallel) -> `freightlake_silver`
+  (`dbt build --select tag:silver`, then the GX gate) -> `freightlake_gold`
+  (`dbt build --select tag:gold`, GX gate, then mart publish).
+- The dbt and GX commands run through `uv run` so they use the project
+  venv inside the Airflow container.
+- The GX tasks validate against live Postgres with no demo fallback: a
+  failed gate must block promotion.
 
 **Quality gate**
-- 95% pass rate across dbt tests + Great Expectations before silver
-  promotes to gold. Don't relax this without flagging it explicitly.
+- GX suites mirror the dbt tests; `warn` severity mirrors known issues
+  documented in `gx/README.md` (for example null `fuel_purchases.truck_id`
+  and duplicate `trailer_number`). Don't relax an error to a warn without
+  flagging it explicitly.
 
 **Style**
-- Python: `uv`-managed, `ruff` + `mypy` clean.
+- Python: `uv`-managed, `ruff` clean.
 - SQL: `sqlfluff`, dialect `postgres` for `sql/oltp_schema/` and
   `sql/serving_mart/`, dialect `databricks`/`sparksql` for dbt models.
 - No credentials in code. Everything comes from environment variables;
-  `dbt/profiles.yml` and `.env.example` only ever hold placeholders.
+  `.env.example` holds placeholders only and `dbt/profiles.yml` reads
+  everything from `env_var()`.
 
 ## Workflow
 
 1. Identify which layer(s) the request touches and re-read the relevant
-   section of `ARCHITECTURE.md` before coding.
+   model or job before coding.
 2. Match existing naming and folder conventions exactly — don't invent a
    parallel structure.
-3. After changes, note which tests (dbt tests, GX suite, pytest under
-   `tests/python/`) should be run to verify the change, and which Makefile
-   target covers it (`make bronze`, `make dbt-run`, `make publish`,
-   `make test`).
-4. If a change affects the concept map in `docs/PROJECT_PLAN.md` section 17
-   (e.g. touches CDC, idempotency, SCD, semantic layer), mention that
-   explicitly so documentation stays accurate.
+3. After changes, note which tests should run to verify the change
+   (`uv run pytest tests/unit`, `dbt build`, the GX gate command) and flag
+   that they need a live stack for anything beyond the unit tests.
