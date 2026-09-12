@@ -21,9 +21,15 @@ models:
       +materialized: incremental
       +incremental_strategy: merge
       +schema: silver
+      # tag:silver is what the Airflow silver DAG selects on; without this
+      # tag dbt build --select tag:silver builds nothing.
+      +tags: ["silver"]
     gold:
       +materialized: table
       +schema: gold
+      # tag:gold is what the Airflow gold DAG selects on; without this
+      # tag dbt build --select tag:gold builds nothing.
+      +tags: ["gold"]
 
 vars:
   catalog: "{{ env_var('DATABRICKS_CATALOG', 'freightlake') }}"
