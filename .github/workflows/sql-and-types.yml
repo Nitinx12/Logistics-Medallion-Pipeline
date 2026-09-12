@@ -63,4 +63,4 @@ jobs:
           enable-cache: true
       - run: uv sync --all-groups
       - name: mypy
-        run: uv run mypy src/ tests/ --ignore-missing-imports --show-error-codes || echo "::warning::mypy found issues - tracked in phase 15"
+        run: uv run mypy src/ tests/ --ignore-missing-imports --show-error-codes --explicit-package-bases || echo "::warning::mypy found issues - tracked in phase 15"

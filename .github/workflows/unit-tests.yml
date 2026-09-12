@@ -27,6 +27,19 @@ jobs:
     name: pytest unit and gx demo
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: freight_lake
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: postgres
+      MONGO_URI: mongodb://localhost:27017
+      MONGO_DB: freight_lake
+      DATABRICKS_HOST: dummy.host
+      DATABRICKS_HTTP_PATH: /sql/1.0/warehouses/dummy
+      DATABRICKS_TOKEN: dapi_dummy
+      DATABRICKS_CATALOG: freightlake
+      DATABRICKS_SCHEMA: bronze
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -62,6 +75,14 @@ jobs:
     name: airflow dag parse
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: freight_lake
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: postgres
+      MONGO_URI: mongodb://localhost:27017
+      MONGO_DB: freight_lake
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

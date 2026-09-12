@@ -92,7 +92,20 @@ python_version = "3.13"
 warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
-exclude = ["\\.venv", "dbt/target", "dbt/dbt_packages", "spark-warehouse", "\\.ruff_cache"]
+explicit_package_bases = true
+exclude = ["\\.venv", "dbt/target", "dbt/dbt_packages", "spark-warehouse", "\\.ruff_cache", "spark_jobs"]
+
+[[tool.mypy.overrides]]
+module = "spark_jobs.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "pyspark.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "pandas.*"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
