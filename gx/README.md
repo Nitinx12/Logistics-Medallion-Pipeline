@@ -53,6 +53,7 @@ Demo mode builds synthetic pandas DataFrames that satisfy each suite, evaluates 
 # reads connection from .env via src.utils.connections.get_postgres_engine
 uv run python gx/run_validations.py --postgres --all
 uv run python gx/run_validations.py --postgres --suite silver.fuel_purchases
+uv run python gx/run_validations.py --postgres --layer silver
 ```
 
 The runner tries `silver.<table>` then `gold.<table>` then `public.<table>` and limits to 10000 rows. If Postgres is unreachable it prints a SKIPPED message and exits non zero, use `--demo` in CI when no DB is available.

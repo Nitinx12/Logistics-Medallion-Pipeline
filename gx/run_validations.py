@@ -6,14 +6,15 @@ Great Expectations runner for FreightLake medallion layers.
 Defines rules in expectations/*.json and checks whether the data satisfies them.
 
 Usage:
-  uv run python great_expectations/run_validations.py --demo
-  uv run python great_expectations/run_validations.py --postgres --suite silver.customers
-  uv run python great_expectations/run_validations.py --all --postgres
-  uv run python -m great_expectations.run_validations --help
+  uv run python gx/run_validations.py --demo
+  uv run python gx/run_validations.py --postgres --suite silver.customers
+  uv run python gx/run_validations.py --all --postgres
+  uv run python gx/run_validations.py --postgres --layer silver
 
 Modes:
   --demo      Validate synthetic pandas DataFrames, no DB required, always runnable.
-  --postgres  Validate live Postgres silver/gold tables via SQLAlchemy, falls back to demo if unreachable.
+  --postgres  Validate live Postgres silver/gold tables via SQLAlchemy.
+  --layer     Restrict --all to one medallion layer, silver or gold.
   --databricks Validate Databricks gold tables via databricks-sql-connector if configured.
 
 The expectation suites mirror dbt tests in dbt/models/silver/_silver.yml and
@@ -299,6 +300,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="FreightLake Great Expectations runner")
     parser.add_argument("--suite", help="single suite name e.g. silver.customers")
     parser.add_argument("--all", action="store_true", help="validate all suites")
+    parser.add_argument("--layer", choices=["silver", "gold"], help="restrict --all to one medallion layer")
     parser.add_argument("--demo", action="store_true", help="use synthetic pandas data, no DB")
     parser.add_argument("--postgres", action="store_true", help="validate live Postgres tables")
     parser.add_argument("--bad-demo", action="store_true", help="inject bad rows to demo failures")
@@ -314,6 +316,11 @@ def main() -> int:
     suites = list_suites()
     if args.suite:
         suites = [args.suite]
+    if args.layer:
+        # keep the explicit --suite choice when both are given, otherwise
+        # filter the full list down to the requested layer
+        if not args.suite:
+            suites = [s for s in suites if s.split(".")[0] == args.layer]
     elif not args.all and not args.demo and not args.postgres:
         # default demo
         args.demo = True
@@ -361,7 +368,8 @@ def main() -> int:
                     print(f"    hint: is Postgres running? check POSTGRES_HOST in .env")
         except Exception as e:
             print(f"  Postgres unavailable: {e}")
-            print("  Falling back to demo data, run with --demo")
+            print("  This is a failed gate, not a skipped one: fix Postgres or run")
+            print("  --demo explicitly for a no DB smoke test.")
             if not args.demo:
                 exit_code = 1
 
