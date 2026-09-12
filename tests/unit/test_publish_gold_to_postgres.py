@@ -49,6 +49,9 @@ def test_publish_table_dry_run():
     mock_spark = MagicMock()
     mock_df = MagicMock()
     mock_df.count.return_value = 123
+    # keep the partition count at the default so publish_table skips the
+    # repartition step and df stays this same mock through the write
+    mock_df.rdd.getNumPartitions.return_value = 4
     with patch.object(pub, "read_gold_table", return_value=mock_df) as mock_read:
         res = pub.publish_table(mock_spark, "dim_customers", "freightlake", "gold", "gold", "local", "./spark-warehouse/gold", dry_run=True)
         mock_read.assert_called_once()
@@ -61,6 +64,8 @@ def test_publish_table_write_overwrite():
     mock_spark = MagicMock()
     mock_df = MagicMock()
     mock_df.count.return_value = 10
+    # same as above: no repartition, so the jdbc write lands on this mock
+    mock_df.rdd.getNumPartitions.return_value = 4
     # Mock MART engine for schema creation
     mock_engine = MagicMock()
     mock_conn = MagicMock()
