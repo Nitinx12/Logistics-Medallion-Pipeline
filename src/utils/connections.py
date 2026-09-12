@@ -62,13 +62,23 @@ def get_mongo_db():
 
 
 def get_postgres_engine():
-    """Return a cached SQLAlchemy engine, creating it on first use."""
+    """Return a cached SQLAlchemy engine, creating it on first use.
+
+    Targets the MART split database (freightlake_mart) when the split vars
+    are set, falling back to the legacy single database otherwise. The only
+    current caller is gx/run_validations.py, which validates the silver and
+    gold tables the publish job writes into the mart, so the mart database
+    is the right default here.
+    """
     global _postgres_engine
 
     if _postgres_engine is None:
+        database = getattr(config, "POSTGRES_MART_DATABASE", None) or config.POSTGRES_DATABASE
+        username = getattr(config, "POSTGRES_MART_USER", None) or config.POSTGRES_USERNAME
+        password = getattr(config, "POSTGRES_MART_PASSWORD", None) or config.POSTGRES_PASSWORD
         log.info(
             f"Opening Postgres connection to "
-            f"{config.POSTGRES_HOST}:{config.POSTGRES_PORT}/{config.POSTGRES_DATABASE}"
+            f"{config.POSTGRES_HOST}:{config.POSTGRES_PORT}/{database}"
         )
         # Built with URL.create (not an f-string) so a password containing
         # @, :, or / doesn't corrupt the URL, and so optional sslmode /
@@ -84,11 +94,11 @@ def get_postgres_engine():
         }
         url = URL.create(
             "postgresql+psycopg2",
-            username=config.POSTGRES_USERNAME,
-            password=config.POSTGRES_PASSWORD,
+            username=username,
+            password=password,
             host=config.POSTGRES_HOST,
             port=config.POSTGRES_PORT,
-            database=config.POSTGRES_DATABASE,
+            database=database,
             query=query,
         )
         try:
