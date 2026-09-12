@@ -16,12 +16,11 @@ GX_DIR="${GX_DIR:-$REPO_ROOT/gx}"
 
 log "[run_gx] start checkpoint=$GX_CHECKPOINT dir=$GX_DIR"
 
-cd "$REPO_ROOT"
 if command -v great_expectations >/dev/null 2>&1; then
-  great_expectations checkpoint run "$GX_CHECKPOINT" --directory "$GX_DIR" 2>&1 | tee -a "$LOG_FILE"
+  (cd "$GX_DIR" && great_expectations checkpoint run "$GX_CHECKPOINT") 2>&1 | tee -a "$LOG_FILE"
 else
   log "[run_gx] great_expectations not found, using uv run"
-  uv run great_expectations checkpoint run "$GX_CHECKPOINT" --directory "$GX_DIR" 2>&1 | tee -a "$LOG_FILE"
+  (cd "$GX_DIR" && uv run great_expectations checkpoint run "$GX_CHECKPOINT") 2>&1 | tee -a "$LOG_FILE"
 fi
 
 log "[run_gx] done"
