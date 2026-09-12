@@ -96,8 +96,8 @@ Notes:
   file names, CLI flags, and identifiers (`docker-compose`, `feature/x`), but
   never inside a sentence describing something. Rewrite the sentence instead
   of reaching for a hyphenated compound adjective.
-- `README.md` stays short. Full detail belongs in dedicated docs under
-  `docs/` once they exist, or directly in the relevant module.
+- `README.md` stays short. Full detail belongs in `ARCHITECTURE.md` and the
+  files under `docs/`, each of which owns one topic.
 - Every architecture diagram is Mermaid, checked into the relevant `.md`
   file, not an external image unless there is a specific reason a diagram
   cannot be expressed in Mermaid.

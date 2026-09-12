@@ -32,9 +32,32 @@ The `data-engineer` and `code-reviewer` subagents in `.claude/agents/`
 already know the conventions below, delegate to them for implementation and
 review work rather than re explaining this file.
 
+## Documentation
+
+| Document | Content |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Four Mermaid diagrams, per layer design decisions |
+| [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) | Roadmap, tech stack, build order, 40 term concept map |
+| [docs/PIPELINE.md](docs/PIPELINE.md) | Step by step pipeline flow with watermark and fallback detail |
+| [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md) | Prerequisites, quick start, commands, port table |
+| [docs/AIRFLOW.md](docs/AIRFLOW.md) | DAG schedules, task breakdown, Docker Airflow services |
+| [docs/DATABRICKS.md](docs/DATABRICKS.md) | Catalog layout, materializations, write modes, setup steps |
+| [docs/DBT.md](docs/DBT.md) | Models, SCD2 implementation, tests, commands |
+| [docs/POSTGRES.md](docs/POSTGRES.md) | OLTP tables, mart schema, connection detail |
+| [docs/MONGODB.md](docs/MONGODB.md) | Collections, watermark field, seed behavior |
+| [docs/DATA_QUALITY.md](docs/DATA_QUALITY.md) | dbt tests, Great Expectations, quality gate logic |
+| [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | Full table and column reference for all three layers |
+| [docs/TESTING.md](docs/TESTING.md) | Test inventory, commands, CI description |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Port conflicts, Databricks errors, Airflow setup, watermark resets |
+| [docs/MONITORING.md](docs/MONITORING.md) | Airflow UI, logs, watermarks, Docker health |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Branching, commit style, paired scripts rule, definition of done |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | What changed in each version |
+
 ## Repo layout
 
 ```
+ARCHITECTURE.md          system views and per layer design decisions
+docs/                    one topic per file: pipeline, setup, quality, dictionary, ...
 airflow/dags/            three DAGs: bronze, silver, gold (chained by ExternalTaskSensor)
 src/jobs/                pg_extract_incremental, mongo_extract_incremental, publish_gold_to_postgres
 src/utils/               engine.py (env config), connections.py, logger.py
