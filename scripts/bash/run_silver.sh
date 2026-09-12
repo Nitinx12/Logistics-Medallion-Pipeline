@@ -1,6 +1,7 @@
 #!/bin/bash
-# run_silver.sh - execute the silver medallion dbt models
-# Runs dbt select on the silver models and fails fast on errors.
+# run_silver.sh - build and test the silver dbt models
+# dbt build runs the models and their tests in dependency order and fails
+# fast on the first failing test.
 
 set -euo pipefail
 
@@ -12,16 +13,11 @@ mkdir -p "$(dirname "$LOG_FILE")"
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 
 DBT_PROFILES_DIR="${DBT_PROFILES_DIR:-$REPO_ROOT/dbt}"
-DBT_SELECT="${DBT_SELECT:-silver}"
+DBT_SELECT="${DBT_SELECT:-tag:silver}"
 
 log "[run_silver] start profiles=$DBT_PROFILES_DIR select=$DBT_SELECT"
 
 cd "$REPO_ROOT/dbt"
-if command -v dbt >/dev/null 2>&1; then
-  dbt run --profiles-dir "$DBT_PROFILES_DIR" --select "$DBT_SELECT" 2>&1 | tee -a "$LOG_FILE"
-else
-  log "[run_silver] dbt not found, using uv run dbt"
-  uv run dbt run --profiles-dir "$DBT_PROFILES_DIR" --select "$DBT_SELECT" 2>&1 | tee -a "$LOG_FILE"
-fi
+uv run dbt build --profiles-dir "$DBT_PROFILES_DIR" --select "$DBT_SELECT" 2>&1 | tee -a "$LOG_FILE"
 
 log "[run_silver] done"

@@ -12,6 +12,7 @@ __pycache__/
 .coverage.*
 htmlcov/
 .pyre/
+.sqlfluff
 
 # ==========================
 # Virtual Environments
@@ -148,8 +149,18 @@ logs/
 !logs/.gitkeep
 !output/.gitkeep
 !exports/.gitkeep
-__init__.pyreports/asset/pipeline.mp4
 
+# ==========================
+# Project specific
+# ==========================
+spark-warehouse/
+dbt/target/
+dbt/dbt_packages/
+coverage.xml
+reports/
+assets/pipeline.mp4
+
+# GX uncommitted is ignored but keep tracked files
 gx/uncommitted/
 !gx/.gitkeep
 !gx/expectations/*.json
@@ -160,5 +171,3 @@ gx/uncommitted/
 !gx/plugins/*.py
 
 link/.env
-
-.env

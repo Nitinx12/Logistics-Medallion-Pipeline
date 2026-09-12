@@ -1,0 +1,50 @@
+name: ci-full
+
+# Full gate including dbt tests against a real warehouse.
+# Runs only when manually triggered or when files under dbt/ change on main.
+# Requires Databricks secrets to be configured in the repository settings.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "dbt/**"
+      - "gx/**"
+      - "src/**"
+      - "pyproject.toml"
+      - "uv.lock"
+
+jobs:
+  full-gate:
+    name: full gate with warehouse
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: warehouse
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: sync dependencies
+        run: uv sync --all-groups
+
+      - name: run full gate
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HTTP_PATH: ${{ secrets.DATABRICKS_HTTP_PATH }}
+          DATABRICKS_CATALOG: ${{ secrets.DATABRICKS_CATALOG }}
+          DATABRICKS_SCHEMA: ${{ secrets.DATABRICKS_SCHEMA }}
+        run: |
+          chmod +x scripts/bash/run_all_tests.sh
+          scripts/bash/run_all_tests.sh

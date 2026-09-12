@@ -45,7 +45,6 @@ import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 warnings.filterwarnings("ignore")
 os.environ.setdefault("PYTHONWARNINGS", "ignore")
@@ -84,24 +83,84 @@ log = get_logger("mongo_extract_incremental", console_level=logging.WARNING)
 # CLI
 # ---------------------------------------------------------------------------
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Incrementally extract MongoDB collection(s) into Delta table(s).")
-    p.add_argument("--collection", default=None, help="Source collection, e.g. 'delivery_events'. Omit to process every collection in MONGO_DB.")
-    p.add_argument("--database", default=getattr(config, "MONGO_DB", None), help="MongoDB database (default: MONGO_DB env)")
-    p.add_argument("--exclude-collections", default="", help="Comma-separated collection names to skip when running against all collections")
-    p.add_argument("--target-catalog", default=getattr(config, "DATABRICKS_CATALOG", None), help="Unity Catalog catalog name (default: DATABRICKS_CATALOG env)")
+    p = argparse.ArgumentParser(
+        description="Incrementally extract MongoDB collection(s) into Delta table(s)."
+    )
+    p.add_argument(
+        "--collection",
+        default=None,
+        help="Source collection, e.g. 'delivery_events'. Omit to process every collection in MONGO_DB.",
+    )
+    p.add_argument(
+        "--database",
+        default=getattr(config, "MONGO_DB", None),
+        help="MongoDB database (default: MONGO_DB env)",
+    )
+    p.add_argument(
+        "--exclude-collections",
+        default="",
+        help="Comma-separated collection names to skip when running against all collections",
+    )
+    p.add_argument(
+        "--target-catalog",
+        default=getattr(config, "DATABRICKS_CATALOG", None),
+        help="Unity Catalog catalog name (default: DATABRICKS_CATALOG env)",
+    )
     p.add_argument("--target-schema", default="bronze", help="Target schema (default: bronze)")
-    p.add_argument("--target-table", default=None, help="Target table name, single-collection mode only (default: same as source collection)")
-    p.add_argument("--write-mode", choices=["auto", "warehouse", "local", "uc_managed", "uc_external"], default="auto", help="Bronze write strategy: auto picks BRONZE_WRITE_MODE env (warehouse default)")
-    p.add_argument("--updated-at-column", default="updated_at", help="Watermark field (default: updated_at)")
-    p.add_argument("--no-updated-at-mode", choices=["skip", "overwrite"], default="overwrite", help="What to do with collections lacking watermark field (default: overwrite)")
-    p.add_argument("--mode", choices=["append", "merge"], default="append", help="append = bronze insert log; merge = upsert on --key-column (single-collection only)")
-    p.add_argument("--key-column", default=None, help="Primary key field, required when --mode merge")
-    p.add_argument("--chunk-days", type=float, default=7.0, help="Size of each incremental time window in days (default: 7 for 10k+ past processing)")
-    p.add_argument("--fetch-size", type=int, default=50000, help="Not used for Mongo but kept for parity (50000 for 10k+ rows)")
-    p.add_argument("--num-partitions", type=int, default=4, help="Not used for Mongo but kept for parity (4 for 10k+ rows)")
-    p.add_argument("--since", default=None, help="Override watermark, ISO format e.g. 2026-01-01T00:00:00")
+    p.add_argument(
+        "--target-table",
+        default=None,
+        help="Target table name, single-collection mode only (default: same as source collection)",
+    )
+    p.add_argument(
+        "--write-mode",
+        choices=["auto", "warehouse", "local", "uc_managed", "uc_external"],
+        default="auto",
+        help="Bronze write strategy: auto picks BRONZE_WRITE_MODE env (warehouse default)",
+    )
+    p.add_argument(
+        "--updated-at-column", default="updated_at", help="Watermark field (default: updated_at)"
+    )
+    p.add_argument(
+        "--no-updated-at-mode",
+        choices=["skip", "overwrite"],
+        default="overwrite",
+        help="What to do with collections lacking watermark field (default: overwrite)",
+    )
+    p.add_argument(
+        "--mode",
+        choices=["append", "merge"],
+        default="append",
+        help="append = bronze insert log; merge = upsert on --key-column (single-collection only)",
+    )
+    p.add_argument(
+        "--key-column", default=None, help="Primary key field, required when --mode merge"
+    )
+    p.add_argument(
+        "--chunk-days",
+        type=float,
+        default=7.0,
+        help="Size of each incremental time window in days (default: 7 for 10k+ past processing)",
+    )
+    p.add_argument(
+        "--fetch-size",
+        type=int,
+        default=50000,
+        help="Not used for Mongo but kept for parity (50000 for 10k+ rows)",
+    )
+    p.add_argument(
+        "--num-partitions",
+        type=int,
+        default=4,
+        help="Not used for Mongo but kept for parity (4 for 10k+ rows)",
+    )
+    p.add_argument(
+        "--since", default=None, help="Override watermark, ISO format e.g. 2026-01-01T00:00:00"
+    )
     p.add_argument("--full", action="store_true", help="Force full reload, ignoring watermark")
-    p.add_argument("--dry-run", action="store_true", help="Compute chunks and row counts but write nothing")
+    p.add_argument(
+        "--dry-run", action="store_true", help="Compute chunks and row counts but write nothing"
+    )
     return p.parse_args()
 
 
@@ -111,21 +170,25 @@ class JobConfig:
     target_fqtn: str
     updated_at_col: str
     mode: str
-    key_column: Optional[str]
+    key_column: str | None
     chunk_days: float
     fetch_size: int
     num_partitions: int
-    since_override: Optional[datetime]
+    since_override: datetime | None
     force_full: bool
     dry_run: bool
     write_mode: str = "warehouse"
 
 
-def build_job_config(args: argparse.Namespace, coll_name: str, target_table_override: Optional[str] = None) -> JobConfig:
+def build_job_config(
+    args: argparse.Namespace, coll_name: str, target_table_override: str | None = None
+) -> JobConfig:
     source_fqtn = coll_name
     target_table = target_table_override or coll_name
     if not args.target_catalog or not args.target_schema:
-        raise SystemExit("Target catalog/schema not set. Pass --target-catalog/--target-schema or set DATABRICKS_CATALOG in .env")
+        raise SystemExit(
+            "Target catalog/schema not set. Pass --target-catalog/--target-schema or set DATABRICKS_CATALOG in .env"
+        )
     target_fqtn = f"{args.target_catalog}.{args.target_schema}.{target_table}"
     if args.mode == "merge" and not args.key_column:
         raise SystemExit("--mode merge requires --key-column")
@@ -181,12 +244,17 @@ def build_spark_session(catalog_name: str, write_mode: str = "warehouse") -> Spa
             SparkSession.builder.appName("mongo_extract_incremental")
             .config("spark.jars", ",".join(jar_paths))
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+            .config(
+                "spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+            )
             .config("spark.ui.showConsoleProgress", "false")
             .config("spark.sql.session.timeZone", "UTC")
         )
         if LOG4J_CONFIG.exists():
-            builder = builder.config("spark.driver.extraJavaOptions", f"-Dlog4j.configurationFile={LOG4J_CONFIG.as_uri()}")
+            builder = builder.config(
+                "spark.driver.extraJavaOptions",
+                f"-Dlog4j.configurationFile={LOG4J_CONFIG.as_uri()}",
+            )
         spark = builder.getOrCreate()
         spark.sparkContext.setLogLevel("ERROR")
         return spark
@@ -204,7 +272,9 @@ def build_spark_session(catalog_name: str, write_mode: str = "warehouse") -> Spa
         SparkSession.builder.appName("mongo_extract_incremental")
         .config("spark.jars", ",".join(jar_paths))
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-        .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+        .config(
+            "spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+        )
         .config(f"spark.sql.catalog.{catalog_name}", "io.unitycatalog.spark.UCSingleCatalog")
         .config(f"spark.sql.catalog.{catalog_name}.uri", uc_uri)
         .config(f"spark.sql.catalog.{catalog_name}.token", config.DATABRICKS_TOKEN or "")
@@ -213,13 +283,17 @@ def build_spark_session(catalog_name: str, write_mode: str = "warehouse") -> Spa
         .config("spark.sql.session.timeZone", "UTC")
     )
     if LOG4J_CONFIG.exists():
-        builder = builder.config("spark.driver.extraJavaOptions", f"-Dlog4j.configurationFile={LOG4J_CONFIG.as_uri()}")
+        builder = builder.config(
+            "spark.driver.extraJavaOptions", f"-Dlog4j.configurationFile={LOG4J_CONFIG.as_uri()}"
+        )
     spark = builder.getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     return spark
 
 
-def verify_uc_catalog(spark: SparkSession, catalog_name: str, write_mode: str = "warehouse") -> None:
+def verify_uc_catalog(
+    spark: SparkSession, catalog_name: str, write_mode: str = "warehouse"
+) -> None:
     if write_mode in {"local", "warehouse"}:
         return
     try:
@@ -249,13 +323,16 @@ def discover_collections(mongo_db, exclude: set[str]) -> list[str]:
     cols = mongo_db.list_collection_names()
     return sorted([c for c in cols if c not in exclude and not c.startswith("system.")])
 
+
 def collection_has_field(mongo_db, coll: str, field: str) -> bool:
     return mongo_db[coll].find_one({field: {"$exists": True}}) is not None
+
 
 def _local_delta_path(table_fqtn: str) -> Path:
     table = table_fqtn.split(".")[-1]
     base = Path(getattr(config, "BRONZE_LOCAL_PATH", "./spark-warehouse/bronze"))
     return base / table
+
 
 def _warehouse_table_exists(target_fqtn: str) -> bool:
     try:
@@ -267,6 +344,7 @@ def _warehouse_table_exists(target_fqtn: str) -> bool:
     with conn.cursor() as cur:
         cur.execute(f"SHOW TABLES IN {catalog}.{schema} LIKE '{table}'")
         return len(cur.fetchall()) > 0
+
 
 def _warehouse_max_watermark(target_fqtn: str, col: str):
     try:
@@ -284,8 +362,10 @@ def _warehouse_max_watermark(target_fqtn: str, col: str):
         except Exception:
             return getattr(row, "wm", None)
 
+
 def _local_table_exists(target_fqtn: str) -> bool:
     return (_local_delta_path(target_fqtn) / "_delta_log").exists()
+
 
 def _local_max_watermark(spark: SparkSession, target_fqtn: str, col: str):
     path = str(_local_delta_path(target_fqtn))
@@ -296,8 +376,21 @@ def _local_max_watermark(spark: SparkSession, target_fqtn: str, col: str):
     except Exception:
         return None
 
+
 def _spark_type_to_sql(t) -> str:
-    from pyspark.sql.types import StringType, IntegerType, LongType, DoubleType, FloatType, BooleanType, TimestampType, DateType, DecimalType, BinaryType
+    from pyspark.sql.types import (
+        BinaryType,
+        BooleanType,
+        DateType,
+        DecimalType,
+        DoubleType,
+        FloatType,
+        IntegerType,
+        LongType,
+        StringType,
+        TimestampType,
+    )
+
     if isinstance(t, StringType):
         return "STRING"
     if isinstance(t, IntegerType):
@@ -318,12 +411,19 @@ def _spark_type_to_sql(t) -> str:
         return "BINARY"
     return "STRING"
 
-def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Optional[str] = None) -> None:
-    import pandas as pd, math
+
+def _write_via_warehouse(
+    df: DataFrame, target_fqtn: str, mode: str, key_col: str | None = None
+) -> None:
+    import math
+
+    import pandas as pd
+
     try:
         from ..utils.connections import get_databricks_connection
     except ImportError:
         from src.utils.connections import get_databricks_connection  # type: ignore
+
     def _sql_literal(v):
         if v is None or (isinstance(v, float) and (math.isnan(v) or math.isinf(v))):
             return "NULL"
@@ -338,12 +438,13 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
             try:
                 return f"'{pd.Timestamp(v).isoformat()}'"
             except Exception:
-                return f"'{str(v)}'"
+                return f"'{v!s}'"
         if isinstance(v, (bytes, bytearray)):
             return "'" + v.hex() + "'"
         if isinstance(v, bool):
             return "TRUE" if v else "FALSE"
         return str(v)
+
     df = df.repartition(4) if df.rdd.getNumPartitions() < 4 else df
     pdf = df.toPandas()
     if pdf.empty:
@@ -355,7 +456,7 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
         batch_size = 5000
         if mode == "merge" and key_col and key_col in pdf.columns:
             for start in range(0, len(pdf), batch_size):
-                batch = pdf.iloc[start:start+batch_size]
+                batch = pdf.iloc[start : start + batch_size]
                 cols = ", ".join(f"`{c}`" for c in pdf.columns)
                 rows_sql = []
                 for _, r in batch.iterrows():
@@ -373,7 +474,7 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
         else:
             cols = ", ".join(f"`{c}`" for c in pdf.columns)
             for start in range(0, len(pdf), batch_size):
-                batch = pdf.iloc[start:start+batch_size]
+                batch = pdf.iloc[start : start + batch_size]
                 rows_sql = []
                 for _, r in batch.iterrows():
                     vals = [_sql_literal(v) for v in r]
@@ -381,7 +482,10 @@ def _write_via_warehouse(df: DataFrame, target_fqtn: str, mode: str, key_col: Op
                 values_clause = ", ".join(rows_sql)
                 cur.execute(f"INSERT INTO {target_fqtn} ({cols}) VALUES {values_clause}")
 
-def _write_local_delta(spark: SparkSession, df: DataFrame, target_fqtn: str, mode: str, table_exists: bool) -> None:
+
+def _write_local_delta(
+    spark: SparkSession, df: DataFrame, target_fqtn: str, mode: str, table_exists: bool
+) -> None:
     path = str(_local_delta_path(target_fqtn))
     if not table_exists:
         df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").save(path)
@@ -390,10 +494,13 @@ def _write_local_delta(spark: SparkSession, df: DataFrame, target_fqtn: str, mod
         df.write.format("delta").mode("append").save(path)
         return
 
+
 # ---------------------------------------------------------------------------
 # Watermark + chunk planning (reused)
 # ---------------------------------------------------------------------------
-def target_table_exists(spark: SparkSession, target_fqtn: str, write_mode: str = "warehouse") -> bool:
+def target_table_exists(
+    spark: SparkSession, target_fqtn: str, write_mode: str = "warehouse"
+) -> bool:
     if write_mode == "local":
         return _local_table_exists(target_fqtn)
     if write_mode == "warehouse":
@@ -413,7 +520,8 @@ def target_table_exists(spark: SparkSession, target_fqtn: str, write_mode: str =
     except Exception:
         return False
 
-def _coerce_datetime(value, context: str) -> Optional[datetime]:
+
+def _coerce_datetime(value, context: str) -> datetime | None:
     if value is None or isinstance(value, datetime):
         return value
     if isinstance(value, str):
@@ -423,12 +531,24 @@ def _coerce_datetime(value, context: str) -> Optional[datetime]:
             raise ValueError(f"Could not parse {context} value {value!r}: {e}") from e
     raise TypeError(f"Unexpected type {type(value).__name__} for {context}: {value!r}")
 
-def get_source_bounds_mongo(spark: SparkSession, mongo_uri: str, mongo_db: str, coll: str, updated_at_col: str):
+
+def get_source_bounds_mongo(
+    spark: SparkSession, mongo_uri: str, mongo_db: str, coll: str, updated_at_col: str
+):
     # Use pymongo directly – avoids mongo-spark-connector 10.4.0 incompatibility with Spark 4.2
     # (NoSuchMethodError: ExpressionEncoder.resolveAndBind)
     from pymongo import MongoClient
+
     db = MongoClient(mongo_uri)[mongo_db]
-    pipeline = [{"$group": {"_id": None, "min_ts": {"$min": f"${updated_at_col}"}, "max_ts": {"$max": f"${updated_at_col}"}}}]
+    pipeline = [
+        {
+            "$group": {
+                "_id": None,
+                "min_ts": {"$min": f"${updated_at_col}"},
+                "max_ts": {"$max": f"${updated_at_col}"},
+            }
+        }
+    ]
     docs = list(db[coll].aggregate(pipeline))
     if not docs:
         return None, None
@@ -436,7 +556,8 @@ def get_source_bounds_mongo(spark: SparkSession, mongo_uri: str, mongo_db: str, 
     max_ts = _coerce_datetime(docs[0].get("max_ts"), f"{coll}.{updated_at_col} MAX")
     return min_ts, max_ts
 
-def resolve_watermark(spark: SparkSession, job: JobConfig) -> Optional[datetime]:
+
+def resolve_watermark(spark: SparkSession, job: JobConfig) -> datetime | None:
     if job.force_full:
         return None
     if job.since_override:
@@ -450,12 +571,17 @@ def resolve_watermark(spark: SparkSession, job: JobConfig) -> Optional[datetime]
         if job.write_mode == "warehouse":
             wm = _warehouse_max_watermark(job.target_fqtn, job.updated_at_col)
             return _coerce_datetime(wm, f"{job.target_fqtn}.{job.updated_at_col} watermark")
-        row = spark.sql(f"SELECT MAX({job.updated_at_col}) AS wm FROM {job.target_fqtn}").collect()[0]
+        row = spark.sql(f"SELECT MAX({job.updated_at_col}) AS wm FROM {job.target_fqtn}").collect()[
+            0
+        ]
         return _coerce_datetime(row["wm"], f"{job.target_fqtn}.{job.updated_at_col} watermark")
     except Exception:
         return None
 
-def build_windows(start: datetime, end: datetime, chunk_days: float, full_load: bool) -> list[tuple[datetime, datetime, bool]]:
+
+def build_windows(
+    start: datetime, end: datetime, chunk_days: float, full_load: bool
+) -> list[tuple[datetime, datetime, bool]]:
     if start > end:
         return []
     if start == end:
@@ -471,19 +597,28 @@ def build_windows(start: datetime, end: datetime, chunk_days: float, full_load: 
         first = False
     return windows
 
+
 # ---------------------------------------------------------------------------
 # Extraction
 # ---------------------------------------------------------------------------
-def read_window_mongo(spark: SparkSession, mongo_uri: str, mongo_db: str, job: JobConfig, window_start: datetime, window_end: datetime, inclusive_start: bool) -> DataFrame:
+def read_window_mongo(
+    spark: SparkSession,
+    mongo_uri: str,
+    mongo_db: str,
+    job: JobConfig,
+    window_start: datetime,
+    window_end: datetime,
+    inclusive_start: bool,
+) -> DataFrame:
     import pandas as pd
     from pymongo import MongoClient
-    from bson import ObjectId
+
     op = "$gte" if inclusive_start else "$gt"
     client = MongoClient(mongo_uri)
     coll = client[mongo_db][job.source_collection]
     cursor = coll.find(
         {job.updated_at_col: {op: window_start.isoformat(), "$lte": window_end.isoformat()}},
-        {"_id": 0}  # exclude _id to avoid ObjectId struct issues; keep as string if needed
+        {"_id": 0},  # exclude _id to avoid ObjectId struct issues; keep as string if needed
     )
     docs = list(cursor)
     # Convert _id to string if present when we included it – here we excluded, so add if needed elsewhere
@@ -499,6 +634,7 @@ def read_window_mongo(spark: SparkSession, mongo_uri: str, mongo_db: str, job: J
     pdf = pd.DataFrame(docs)
     # Ensure updated_at stays string for watermark
     return spark.createDataFrame(pdf)
+
 
 def write_chunk(spark: SparkSession, df: DataFrame, job: JobConfig, table_exists: bool) -> None:
     if job.write_mode == "local":
@@ -526,7 +662,9 @@ def write_chunk(spark: SparkSession, df: DataFrame, job: JobConfig, table_exists
         spark.catalog.dropTempView(tmp_view)
     except Exception as e:
         if job.write_mode in {"uc_managed", "uc_external"} or _is_uc_managed_blocked(e):
-            log.warning(f"UC managed write blocked for {job.target_fqtn} ({short_error(e)}). Falling back to warehouse.")
+            log.warning(
+                f"UC managed write blocked for {job.target_fqtn} ({short_error(e)}). Falling back to warehouse."
+            )
             try:
                 _write_via_warehouse(df, job.target_fqtn, job.mode, job.key_column)
                 return
@@ -535,19 +673,38 @@ def write_chunk(spark: SparkSession, df: DataFrame, job: JobConfig, table_exists
                 raise we from e
         raise
 
-def run_incremental_collection(spark: SparkSession, mongo_uri: str, mongo_db: str, job: JobConfig, progress: Progress) -> dict:
+
+def run_incremental_collection(
+    spark: SparkSession, mongo_uri: str, mongo_db: str, job: JobConfig, progress: Progress
+) -> dict:
     t0 = datetime.now()
     table_exists = target_table_exists(spark, job.target_fqtn, job.write_mode)
     watermark = resolve_watermark(spark, job)
-    min_ts, max_ts = get_source_bounds_mongo(spark, mongo_uri, mongo_db, job.source_collection, job.updated_at_col)
+    min_ts, max_ts = get_source_bounds_mongo(
+        spark, mongo_uri, mongo_db, job.source_collection, job.updated_at_col
+    )
     if max_ts is None:
-        return {"table": job.source_collection, "kind": "EMPTY", "rows": 0, "chunks": 0, "status": "no rows in source", "elapsed": datetime.now() - t0}
+        return {
+            "table": job.source_collection,
+            "kind": "EMPTY",
+            "rows": 0,
+            "chunks": 0,
+            "status": "no rows in source",
+            "elapsed": datetime.now() - t0,
+        }
     start = watermark if watermark is not None else min_ts
     end = max_ts
     load_kind = "FULL" if watermark is None else "INCREMENTAL"
     windows = build_windows(start, end, job.chunk_days, full_load=(load_kind == "FULL"))
     if not windows:
-        return {"table": job.source_collection, "kind": load_kind, "rows": 0, "chunks": 0, "status": "up to date", "elapsed": datetime.now() - t0}
+        return {
+            "table": job.source_collection,
+            "kind": load_kind,
+            "rows": 0,
+            "chunks": 0,
+            "status": "up to date",
+            "elapsed": datetime.now() - t0,
+        }
     if load_kind == "FULL" and table_exists and not job.dry_run:
         if job.write_mode == "warehouse":
             try:
@@ -562,6 +719,7 @@ def run_incremental_collection(spark: SparkSession, mongo_uri: str, mongo_db: st
                 log.warning(f"Could not truncate {job.target_fqtn} before FULL: {e}")
         elif job.write_mode == "local":
             import shutil
+
             p = _local_delta_path(job.target_fqtn)
             if p.exists():
                 shutil.rmtree(p)
@@ -582,16 +740,33 @@ def run_incremental_collection(spark: SparkSession, mongo_uri: str, mongo_db: st
             total_rows += row_count
         progress.advance(task)
     progress.remove_task(task)
-    return {"table": job.source_collection, "kind": load_kind, "rows": total_rows, "chunks": len(windows), "status": "dry-run" if job.dry_run else "written", "elapsed": datetime.now() - t0}
+    return {
+        "table": job.source_collection,
+        "kind": load_kind,
+        "rows": total_rows,
+        "chunks": len(windows),
+        "status": "dry-run" if job.dry_run else "written",
+        "elapsed": datetime.now() - t0,
+    }
 
-def run_full_snapshot_collection(spark: SparkSession, mongo_uri: str, mongo_db: str, job: JobConfig, progress: Progress) -> dict:
+
+def run_full_snapshot_collection(
+    spark: SparkSession, mongo_uri: str, mongo_db: str, job: JobConfig, progress: Progress
+) -> dict:
     t0 = datetime.now()
-    task = progress.add_task(f"{job.source_collection} (snapshot, no {job.updated_at_col})", total=1)
+    task = progress.add_task(
+        f"{job.source_collection} (snapshot, no {job.updated_at_col})", total=1
+    )
     import pandas as pd
     from pymongo import MongoClient
+
     docs = list(MongoClient(mongo_uri)[mongo_db][job.source_collection].find({}, {"_id": 0}))
     pdf = pd.DataFrame(docs) if docs else pd.DataFrame()
-    df = spark.createDataFrame(pdf) if not pdf.empty else spark.createDataFrame([], schema="dummy STRING")
+    df = (
+        spark.createDataFrame(pdf)
+        if not pdf.empty
+        else spark.createDataFrame([], schema="dummy STRING")
+    )
     if job.dry_run:
         row_count = df.count()
         status = "dry-run"
@@ -615,7 +790,9 @@ def run_full_snapshot_collection(spark: SparkSession, mongo_uri: str, mongo_db: 
             _write_via_warehouse(df, job.target_fqtn, "append")
         else:
             try:
-                df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(job.target_fqtn)
+                df.write.format("delta").mode("overwrite").option(
+                    "overwriteSchema", "true"
+                ).saveAsTable(job.target_fqtn)
             except Exception as e:
                 if _is_uc_managed_blocked(e):
                     _write_via_warehouse(df, job.target_fqtn, "append")
@@ -625,7 +802,15 @@ def run_full_snapshot_collection(spark: SparkSession, mongo_uri: str, mongo_db: 
         status = "overwritten"
     progress.advance(task)
     progress.remove_task(task)
-    return {"table": job.source_collection, "kind": "SNAPSHOT", "rows": row_count, "chunks": 1, "status": status, "elapsed": datetime.now() - t0}
+    return {
+        "table": job.source_collection,
+        "kind": "SNAPSHOT",
+        "rows": row_count,
+        "chunks": 1,
+        "status": status,
+        "elapsed": datetime.now() - t0,
+    }
+
 
 # ---------------------------------------------------------------------------
 # Main
@@ -633,12 +818,18 @@ def run_full_snapshot_collection(spark: SparkSession, mongo_uri: str, mongo_db: 
 def main() -> None:
     args = parse_args()
     if args.collection is None and args.mode == "merge":
-        raise SystemExit("--mode merge isn't supported when running against all collections (primary keys differ). Pass --collection.")
+        raise SystemExit(
+            "--mode merge isn't supported when running against all collections (primary keys differ). Pass --collection."
+        )
     write_mode = resolve_write_mode(getattr(args, "write_mode", "auto"))
     if write_mode == "warehouse" and not getattr(config, "DATABRICKS_TOKEN", None):
-        console.print("[yellow]BRONZE_WRITE_MODE=warehouse but DATABRICKS_TOKEN not set. Falling back to local.[/yellow]")
+        console.print(
+            "[yellow]BRONZE_WRITE_MODE=warehouse but DATABRICKS_TOKEN not set. Falling back to local.[/yellow]"
+        )
         write_mode = "local"
-    with console.status(f"[cyan]Starting Spark session (write_mode={write_mode})...", spinner="dots"):
+    with console.status(
+        f"[cyan]Starting Spark session (write_mode={write_mode})...", spinner="dots"
+    ):
         spark = build_spark_session(args.target_catalog, write_mode=write_mode)
     verify_uc_catalog(spark, args.target_catalog, write_mode=write_mode)
     log.info(f"Spark session ready (write_mode={write_mode})")
@@ -647,51 +838,97 @@ def main() -> None:
     if not mongo_uri or not mongo_db_name:
         raise SystemExit("MONGO_URI / MONGO_DB not set. Check .env")
     from pymongo import MongoClient
+
     client = MongoClient(mongo_uri)
     db = client[mongo_db_name]
     exclude = {t.strip() for t in args.exclude_collections.split(",") if t.strip()}
     bulk_mode = args.collection is None
     if bulk_mode:
-        with console.status(f"[cyan]Discovering collections in '{mongo_db_name}'...", spinner="dots"):
+        with console.status(
+            f"[cyan]Discovering collections in '{mongo_db_name}'...", spinner="dots"
+        ):
             coll_names = discover_collections(db, exclude)
         if not coll_names:
             console.print(f"[yellow]No collections found in '{mongo_db_name}'.[/yellow]")
             spark.stop()
             return
         if args.target_table:
-            console.print("[yellow]--target-table is ignored when running against all collections.[/yellow]")
+            console.print(
+                "[yellow]--target-table is ignored when running against all collections.[/yellow]"
+            )
     else:
         coll_names = [args.collection]
     header = (
-        (f"[bold]collections[/bold]  {len(coll_names)} discovered in '{mongo_db_name}'\n" if bulk_mode else f"[bold]source[/bold]  {coll_names[0]}\n")
+        (
+            f"[bold]collections[/bold]  {len(coll_names)} discovered in '{mongo_db_name}'\n"
+            if bulk_mode
+            else f"[bold]source[/bold]  {coll_names[0]}\n"
+        )
         + f"[bold]target[/bold]  {args.target_catalog}.{args.target_schema}  (write_mode={write_mode})\n"
-        + f"[bold]mode[/bold]    {args.mode}" + (f"  (key: {args.key_column})" if args.mode == "merge" else "") + "\n"
+        + f"[bold]mode[/bold]    {args.mode}"
+        + (f"  (key: {args.key_column})" if args.mode == "merge" else "")
+        + "\n"
         + f"[bold]window[/bold]  {args.chunk_days}d chunks"
     )
     if write_mode == "warehouse":
         header += "\n[dim]warehouse writes via Databricks SQL – avoids 403[/dim]"
     elif write_mode == "local":
         header += f"\n[dim]local Delta at {getattr(config, 'BRONZE_LOCAL_PATH', './spark-warehouse/bronze')}[/dim]"
-    console.print(Panel.fit(header, title="mongo_extract_incremental" + (" - all collections" if bulk_mode else ""), border_style="cyan"))
+    console.print(
+        Panel.fit(
+            header,
+            title="mongo_extract_incremental" + (" - all collections" if bulk_mode else ""),
+            border_style="cyan",
+        )
+    )
     if bulk_mode:
         console.print(f"[dim]{', '.join(coll_names)}[/dim]")
-    progress = Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), BarColumn(), MofNCompleteColumn(), TimeElapsedColumn(), console=console)
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=console,
+    )
     results = []
     with progress:
-        overall = progress.add_task("[bold]overall[/bold]", total=len(coll_names)) if bulk_mode else None
+        overall = (
+            progress.add_task("[bold]overall[/bold]", total=len(coll_names)) if bulk_mode else None
+        )
         for name in coll_names:
-            job = build_job_config(args, name, target_table_override=args.target_table if not bulk_mode else None)
+            job = build_job_config(
+                args, name, target_table_override=args.target_table if not bulk_mode else None
+            )
             try:
                 has_col = collection_has_field(db, name, job.updated_at_col)
                 if has_col:
-                    result = run_incremental_collection(spark, mongo_uri, mongo_db_name, job, progress)
+                    result = run_incremental_collection(
+                        spark, mongo_uri, mongo_db_name, job, progress
+                    )
                 elif args.no_updated_at_mode == "overwrite":
-                    result = run_full_snapshot_collection(spark, mongo_uri, mongo_db_name, job, progress)
+                    result = run_full_snapshot_collection(
+                        spark, mongo_uri, mongo_db_name, job, progress
+                    )
                 else:
-                    result = {"table": name, "kind": "SKIPPED", "rows": 0, "chunks": 0, "status": f"no {job.updated_at_col} column", "elapsed": timedelta(0)}
+                    result = {
+                        "table": name,
+                        "kind": "SKIPPED",
+                        "rows": 0,
+                        "chunks": 0,
+                        "status": f"no {job.updated_at_col} column",
+                        "elapsed": timedelta(0),
+                    }
             except Exception as e:
                 log.exception(f"Failed extracting {name}")
-                result = {"table": name, "kind": "ERROR", "rows": 0, "chunks": 0, "status": f"error: {short_error(e)}", "elapsed": timedelta(0)}
+                result = {
+                    "table": name,
+                    "kind": "ERROR",
+                    "rows": 0,
+                    "chunks": 0,
+                    "status": f"error: {short_error(e)}",
+                    "elapsed": timedelta(0),
+                }
             results.append(result)
             if overall is not None:
                 progress.advance(overall)
@@ -705,11 +942,23 @@ def main() -> None:
     total_rows = 0
     for r in results:
         total_rows += r["rows"]
-        summary.add_row(r["table"], r["kind"], f"{r['rows']:,}", str(r["chunks"]), r["status"], f"{r['elapsed'].total_seconds():.1f}s")
+        summary.add_row(
+            r["table"],
+            r["kind"],
+            f"{r['rows']:,}",
+            str(r["chunks"]),
+            r["status"],
+            f"{r['elapsed'].total_seconds():.1f}s",
+        )
     console.print(summary)
-    console.print(f"[bold green]Done.[/bold green] {total_rows:,} rows across {len(results)} collection(s).")
-    log.info(f"mongo_extract_incremental complete: {len(results)} collection(s), {total_rows} rows, dry_run={args.dry_run}")
+    console.print(
+        f"[bold green]Done.[/bold green] {total_rows:,} rows across {len(results)} collection(s)."
+    )
+    log.info(
+        f"mongo_extract_incremental complete: {len(results)} collection(s), {total_rows} rows, dry_run={args.dry_run}"
+    )
     spark.stop()
+
 
 if __name__ == "__main__":
     main()

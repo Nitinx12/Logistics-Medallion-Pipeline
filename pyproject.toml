@@ -1,8 +1,10 @@
 [project]
 name = "freightlake"
 version = "0.1.0"
-description = "Add your description here"
+description = "Logistics medallion lakehouse on Databricks with PySpark and dbt, orchestrated by Airflow and published to Postgres"
 readme = "README.md"
+license = { text = "MIT" }
+keywords = ["etl", "databricks", "delta Lake", "dbt", "pyspark", "airflow", "medallion"]
 authors = [
     { name = "Nitin", email = "nitin321x@gmail.com" }
 ]
@@ -18,6 +20,10 @@ dependencies = [
     "sqlalchemy>=2.0.52",
 ]
 
+[project.urls]
+Repository = "https://github.com/Nitinx12/Logistics-Medallion-Pipeline"
+Issues = "https://github.com/Nitinx12/Logistics-Medallion-Pipeline/issues"
+
 [build-system]
 requires = ["uv_build>=0.12.5,<0.13.0"]
 build-backend = "uv_build"
@@ -29,10 +35,84 @@ package = false
 dev = [
     "dbt-databricks>=1.10.9",
     "great-expectations>=1.3.0",
+    "mypy>=1.15.0",
     "pandas>=3.0.5",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
     "ruff>=0.16.1",
     "sqlfluff>=4.2.2",
     "sqlfluff-templater-dbt>=4.2.2",
+    "types-pyyaml>=6.0.12",
 ]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+exclude = [".venv", ".git", "__pycache__", "dbt/target", "dbt/dbt_packages", "spark-warehouse", "logs", "jars"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "C4", "UP", "S", "RUF", "DTZ", "SIM", "BLE", "TRY"]
+ignore = [
+    "DTZ001",  # naive datetime in tests and legacy code, tracked in phase 15
+    "DTZ005",
+    "S603",  # subprocess without shell, used intentionally in main.py
+    "S607",
+    "S608",  # internal SQL construction with trusted identifiers, not user input
+    "BLE001", # blind except kept for warehouse fallback resilience
+    "TRY003", # long exception messages are intentional
+    "TRY300", # try else style not critical for ETL scripts
+    "E501",  # line length handled by formatter, 100 is soft limit for SQL heavy files
+    "B018",  # DAG parallel list display is intentional
+    "B904",  # SystemExit from except without from is fine for CLI
+    "RUF001", # ambiguous dash in strings/comments, cosmetic
+    "RUF003", # ambiguous dash in comments, cosmetic
+    "RUF100", # unused noqa, low impact
+    "RUF059", # unpacked unused variable, tracked for future prefix with _
+    "SIM105", # suppress vs try pass, style only
+    "S110",  # try except pass, same
+    "B905",  # zip without strict, test code
+    "F841",  # unused local, test scaffolding
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*" = ["S101", "E402", "SIM117", "B011", "F401", "RUF059"]
+"src/jobs/*" = ["S101", "S110", "S112"]
+"gx/**/*" = ["S101", "BLE001", "S112"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+exclude = ["\\.venv", "dbt/target", "dbt/dbt_packages", "spark-warehouse", "\\.ruff_cache"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "slow: marks tests as slow",
+    "integration: requires live services",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 0
+
+[tool.sqlfluff]
+dialect = "postgres"
+templater = "jinja"
+exclude_rules = "LT09,LT12"
+max_line_length = 100

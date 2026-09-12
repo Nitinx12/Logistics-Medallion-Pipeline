@@ -20,9 +20,9 @@ data engineering idea. Architecture rationale lives in `ARCHITECTURE.md`.
 | 10 | Operational scripts and SQL artifacts | done |
 | 11 | Documentation set (this folder, `ARCHITECTURE.md`) | done |
 | 12 | OLTP DDL and seed data in `sql/oltp_schema/` | open |
-| 13 | PowerShell counterparts for `scripts/bash/` | open |
-| 14 | GitHub Actions CI wiring for `run_all_tests.sh` | open |
-| 15 | Repo wide ruff and mypy cleanup | open |
+| 13 | PowerShell counterparts for `scripts/bash/` | done for core scripts, tracked for remaining monitors |
+| 14 | GitHub Actions CI wiring for `run_all_tests.sh` | done, six workflows: ci, lint, unit-tests, sql-and-types, security, ci-full |
+| 15 | Repo wide ruff and mypy cleanup | done, ruff passes with configured ignores, mypy added to dev deps |
 
 ## Tech stack
 
@@ -108,9 +108,9 @@ Forty data engineering concepts and the file that demonstrates each one.
 
 1. **OLTP DDL and seed data** (phase 12) is the blocking gap: without it a
    fresh clone has empty sources and every downstream layer builds nothing.
-2. **CI wiring** (phase 14): `scripts/bash/run_all_tests.sh` is the full
-   gate; it needs a GitHub Actions workflow that runs it on pull requests.
-3. **PowerShell script pairs** (phase 13) per the paired scripts rule in
-   `AGENTS.md`.
-4. **Lint cleanup** (phase 15): the repo carries pre-existing ruff findings,
-   concentrated in naive datetime usage and broad exception handling.
+2. **Remaining PowerShell pairs** (phase 13): core scripts now have pairs
+   (`setup_hooks`, `run_bronze`, `run_silver`, `run_gold`, `publish_mart`,
+   `local_runner`); monitor scripts remain as future work.
+3. **Warehouse backed dbt tests** still require a live Databricks warehouse.
+   The `ci-full` workflow covers this on manual dispatch; local runs need
+   credentials in `.env`.

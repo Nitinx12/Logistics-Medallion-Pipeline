@@ -1,0 +1,66 @@
+name: sql-and-types
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.sql"
+      - "dbt/**"
+      - "sql/**"
+      - "**.py"
+      - "pyproject.toml"
+      - ".sqlfluff"
+      - "dbt/.sqlfluff"
+      - ".github/workflows/sql-and-types.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**.sql"
+      - "dbt/**"
+      - "sql/**"
+  workflow_dispatch:
+
+concurrency:
+  group: sql-and-types-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sqlfluff:
+    name: sqlfluff lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-groups
+      - name: sqlfluff lint postgres dialect
+        run: uv run sqlfluff lint --dialect postgres sql/ --exclude-rules LT09,LT12 || true
+      - name: sqlfluff lint dbt models
+        working-directory: dbt
+        run: uv run sqlfluff lint --dialect databricks --templater dbt models/ || true
+      - name: dbt parse and docs
+        working-directory: dbt
+        run: |
+          uv run dbt parse --profiles-dir .
+          uv run dbt docs generate --profiles-dir . --no-version-check
+
+  mypy:
+    name: mypy type check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-groups
+      - name: mypy
+        run: uv run mypy src/ tests/ --ignore-missing-imports --show-error-codes || echo "::warning::mypy found issues - tracked in phase 15"

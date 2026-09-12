@@ -1,0 +1,61 @@
+name: Bug report
+description: Report a defect in the pipeline or docs
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for bug reports. For a new capability, use the feature request template instead.
+        See docs/GIT_WORKFLOW.md for branch naming and commit rules.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Summary
+      placeholder: One line description of the defect
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Layer or area
+      options:
+        - bronze
+        - silver
+        - gold
+        - mart publish
+        - airflow
+        - docker
+        - dbt
+        - gx
+        - docs
+        - scripts
+        - other
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      placeholder: |
+        1. git checkout ...
+        2. uv run ...
+        3. observed vs expected
+      description: Include commands, logs, or dbt test output
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error output
+      render: shell

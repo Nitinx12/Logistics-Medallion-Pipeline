@@ -1,0 +1,18 @@
+# Pre-commit hooks for local use (optional). The canonical hook is .githooks/pre-commit.
+# Install with: uv run pre-commit install  (if pre-commit is added) or use scripts/bash/setup_hooks.sh
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.1
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict
+      - id: detect-private-key

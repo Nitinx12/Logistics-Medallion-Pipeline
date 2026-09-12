@@ -1,0 +1,13 @@
+# CODEOWNERS for FreightLake
+# Every PR against main requires at least one review from an owner.
+# Replace @Nitinx12 with the actual GitHub handle or team when the repo is transferred.
+# See https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+* @Nitinx12
+
+# Area specific ownership can be refined later, for example:
+# /dbt/ @Nitinx12
+# /airflow/ @Nitinx12
+# /src/jobs/ @Nitinx12
+# /gx/ @Nitinx12
+# /docker/ @Nitinx12

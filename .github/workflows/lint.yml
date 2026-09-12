@@ -1,0 +1,65 @@
+name: lint
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/lint.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**.py"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+concurrency:
+  group: lint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ruff:
+    name: ruff check and format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: sync dependencies
+        run: uv sync --all-groups
+
+      - name: ruff check
+        run: uv run ruff check . --output-format=github
+
+      - name: ruff format check
+        run: uv run ruff format --check . --diff
+
+  ruff-fix-dry-run:
+    name: ruff fix preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-groups
+      - name: show auto fixable issues
+        run: uv run ruff check . --fix --diff || true

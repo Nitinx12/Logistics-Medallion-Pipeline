@@ -12,9 +12,10 @@ from a half finished bronze run.
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.sensors.external_task import ExternalTaskSensor
+
+from airflow import DAG
 
 
 def _repo_root() -> Path:
@@ -48,7 +49,6 @@ with DAG(
     tags=["freightlake", "silver", "dbt"],
     doc_md=__doc__,
 ) as dag:
-
     wait_for_bronze = ExternalTaskSensor(
         task_id="wait_for_bronze",
         external_dag_id="freightlake_bronze",

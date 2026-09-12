@@ -14,8 +14,9 @@ ExternalTaskSensor in freightlake_silver after success.
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from airflow import DAG
 from airflow.operators.bash import BashOperator
+
+from airflow import DAG
 
 
 def _repo_root() -> Path:
@@ -53,7 +54,6 @@ with DAG(
     doc_md=__doc__,
     max_active_tasks=2,
 ) as dag:
-
     bronze_pg = BashOperator(
         task_id="bronze_pg",
         bash_command="uv run python -m src.jobs.pg_extract_incremental --target-schema bronze",

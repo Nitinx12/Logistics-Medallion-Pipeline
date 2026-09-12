@@ -28,18 +28,22 @@ def test_resolve_write_mode():
 
 
 def test_postgres_jdbc_url():
-    with patch.object(pub.config, "POSTGRES_HOST", "localhost"), \
-         patch.object(pub.config, "POSTGRES_PORT", 5432), \
-         patch.object(pub.config, "POSTGRES_DATABASE", "freight_lake"), \
-         patch.object(pub.config, "POSTGRES_MART_DATABASE", None), \
-         patch.object(pub.config, "POSTGRES_SSLMODE", None):
+    with (
+        patch.object(pub.config, "POSTGRES_HOST", "localhost"),
+        patch.object(pub.config, "POSTGRES_PORT", 5432),
+        patch.object(pub.config, "POSTGRES_DATABASE", "freight_lake"),
+        patch.object(pub.config, "POSTGRES_MART_DATABASE", None),
+        patch.object(pub.config, "POSTGRES_SSLMODE", None),
+    ):
         # fallback to legacy when MART not set
         assert pub.postgres_jdbc_url() == "jdbc:postgresql://localhost:5432/freight_lake"
-    with patch.object(pub.config, "POSTGRES_HOST", "localhost"), \
-         patch.object(pub.config, "POSTGRES_PORT", 5432), \
-         patch.object(pub.config, "POSTGRES_DATABASE", "db"), \
-         patch.object(pub.config, "POSTGRES_MART_DATABASE", "mart_db"), \
-         patch.object(pub.config, "POSTGRES_SSLMODE", "require"):
+    with (
+        patch.object(pub.config, "POSTGRES_HOST", "localhost"),
+        patch.object(pub.config, "POSTGRES_PORT", 5432),
+        patch.object(pub.config, "POSTGRES_DATABASE", "db"),
+        patch.object(pub.config, "POSTGRES_MART_DATABASE", "mart_db"),
+        patch.object(pub.config, "POSTGRES_SSLMODE", "require"),
+    ):
         url = pub.postgres_jdbc_url()
         assert "mart_db" in url
         assert "?sslmode=require" in url
@@ -53,7 +57,16 @@ def test_publish_table_dry_run():
     # repartition step and df stays this same mock through the write
     mock_df.rdd.getNumPartitions.return_value = 4
     with patch.object(pub, "read_gold_table", return_value=mock_df) as mock_read:
-        res = pub.publish_table(mock_spark, "dim_customers", "freightlake", "gold", "gold", "local", "./spark-warehouse/gold", dry_run=True)
+        res = pub.publish_table(
+            mock_spark,
+            "dim_customers",
+            "freightlake",
+            "gold",
+            "gold",
+            "local",
+            "./spark-warehouse/gold",
+            dry_run=True,
+        )
         mock_read.assert_called_once()
         assert res["rows"] == 123
         assert res["status"] == "dry-run"
@@ -72,11 +85,25 @@ def test_publish_table_write_overwrite():
     mock_engine.connect.return_value.__enter__.return_value = mock_conn
     mock_engine.connect.return_value.__enter__.return_value = mock_conn
     # _get_mart_engine is now used, mock it
-    with patch.object(pub, "read_gold_table", return_value=mock_df), \
-         patch("src.jobs.publish_gold_to_postgres.postgres_jdbc_url", return_value="jdbc:postgresql://localhost:5432/db"), \
-         patch("src.jobs.publish_gold_to_postgres.postgres_props", return_value={"user": "u"}), \
-         patch("src.jobs.publish_gold_to_postgres._get_mart_engine", return_value=mock_engine):
-        res = pub.publish_table(mock_spark, "fact_loads", "freightlake", "gold", "gold", "uc", "./spark-warehouse/gold", dry_run=False)
+    with (
+        patch.object(pub, "read_gold_table", return_value=mock_df),
+        patch(
+            "src.jobs.publish_gold_to_postgres.postgres_jdbc_url",
+            return_value="jdbc:postgresql://localhost:5432/db",
+        ),
+        patch("src.jobs.publish_gold_to_postgres.postgres_props", return_value={"user": "u"}),
+        patch("src.jobs.publish_gold_to_postgres._get_mart_engine", return_value=mock_engine),
+    ):
+        res = pub.publish_table(
+            mock_spark,
+            "fact_loads",
+            "freightlake",
+            "gold",
+            "gold",
+            "uc",
+            "./spark-warehouse/gold",
+            dry_run=False,
+        )
         # should have called jdbc write
         mock_df.write.jdbc.assert_called_once()
         assert res["rows"] == 10
@@ -86,6 +113,8 @@ def test_publish_table_write_overwrite():
 def test_publish_table_error_handling():
     mock_spark = MagicMock()
     with patch.object(pub, "read_gold_table", side_effect=Exception("read failed")):
-        res = pub.publish_table(mock_spark, "bad_table", "freightlake", "gold", "gold", "local", "./tmp", dry_run=False)
+        res = pub.publish_table(
+            mock_spark, "bad_table", "freightlake", "gold", "gold", "local", "./tmp", dry_run=False
+        )
         assert "error" in res["status"]
         assert res["rows"] == 0

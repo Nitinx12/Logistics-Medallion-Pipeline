@@ -12,9 +12,10 @@ never builds before silver passed its quality gate.
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.sensors.external_task import ExternalTaskSensor
+
+from airflow import DAG
 
 
 def _repo_root() -> Path:
@@ -48,7 +49,6 @@ with DAG(
     tags=["freightlake", "gold", "mart", "dbt"],
     doc_md=__doc__,
 ) as dag:
-
     wait_for_silver = ExternalTaskSensor(
         task_id="wait_for_silver",
         external_dag_id="freightlake_silver",

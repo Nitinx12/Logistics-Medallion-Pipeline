@@ -26,7 +26,6 @@ import sys
 import warnings
 from datetime import datetime
 from pathlib import Path
-from typing import List
 
 warnings.filterwarnings("ignore")
 os.environ.setdefault("PYTHONWARNINGS", "ignore")
@@ -72,16 +71,51 @@ DEFAULT_GOLD_TABLES = [
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Publish Gold Delta to Postgres serving mart.")
-    p.add_argument("--catalog", default=getattr(config, "DATABRICKS_CATALOG", "freightlake"), help="Source catalog for Gold (default: DATABRICKS_CATALOG)")
+    p.add_argument(
+        "--catalog",
+        default=getattr(config, "DATABRICKS_CATALOG", "freightlake"),
+        help="Source catalog for Gold (default: DATABRICKS_CATALOG)",
+    )
     p.add_argument("--gold-schema", default="gold", help="Source gold schema (default: gold)")
-    p.add_argument("--mart-schema", default=getattr(config, "POSTGRES_SCHEMA_GOLD", "gold") or "gold", help="Target Postgres mart schema (default: POSTGRES_SCHEMA_GOLD or gold)")
-    p.add_argument("--tables", default=None, help="Comma separated gold tables to publish, default all")
-    p.add_argument("--write-mode", choices=["auto", "uc", "local"], default="auto", help="Read gold from UC or local Delta")
-    p.add_argument("--local-gold-path", default=getattr(config, "BRONZE_LOCAL_PATH", "./spark-warehouse/bronze").replace("bronze", "gold"), help="Local gold path when write-mode=local")
-    p.add_argument("--jdbc-batch-size", type=int, default=10000, help="JDBC batch size for fast publish (10000 for 10k+ rows)")
-    p.add_argument("--repartition", type=int, default=4, help="Repartition gold DF before JDBC write for fast publish")
+    p.add_argument(
+        "--mart-schema",
+        default=getattr(config, "POSTGRES_SCHEMA_GOLD", "gold") or "gold",
+        help="Target Postgres mart schema (default: POSTGRES_SCHEMA_GOLD or gold)",
+    )
+    p.add_argument(
+        "--tables", default=None, help="Comma separated gold tables to publish, default all"
+    )
+    p.add_argument(
+        "--write-mode",
+        choices=["auto", "uc", "local"],
+        default="auto",
+        help="Read gold from UC or local Delta",
+    )
+    p.add_argument(
+        "--local-gold-path",
+        default=getattr(config, "BRONZE_LOCAL_PATH", "./spark-warehouse/bronze").replace(
+            "bronze", "gold"
+        ),
+        help="Local gold path when write-mode=local",
+    )
+    p.add_argument(
+        "--jdbc-batch-size",
+        type=int,
+        default=10000,
+        help="JDBC batch size for fast publish (10000 for 10k+ rows)",
+    )
+    p.add_argument(
+        "--repartition",
+        type=int,
+        default=4,
+        help="Repartition gold DF before JDBC write for fast publish",
+    )
     p.add_argument("--dry-run", action="store_true", help="Count rows and log, write nothing")
-    p.add_argument("--demo", action="store_true", help="Use synthetic gold data, no Delta or UC required, for local demo and CI")
+    p.add_argument(
+        "--demo",
+        action="store_true",
+        help="Use synthetic gold data, no Delta or UC required, for local demo and CI",
+    )
     return p.parse_args()
 
 
@@ -95,7 +129,9 @@ def build_spark_session(catalog_name: str, write_mode: str) -> SparkSession:
             SparkSession.builder.appName("publish_gold_to_postgres")
             .config("spark.jars", ",".join(jar_paths))
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+            .config(
+                "spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+            )
             .config("spark.ui.showConsoleProgress", "false")
             .config("spark.sql.session.timeZone", "UTC")
         )
@@ -113,7 +149,9 @@ def build_spark_session(catalog_name: str, write_mode: str) -> SparkSession:
             SparkSession.builder.appName("publish_gold_to_postgres")
             .config("spark.jars", ",".join(jar_paths))
             .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-            .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+            .config(
+                "spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+            )
             .config(f"spark.sql.catalog.{catalog_name}", "io.unitycatalog.spark.UCSingleCatalog")
             .config(f"spark.sql.catalog.{catalog_name}.uri", uc_uri)
             .config(f"spark.sql.catalog.{catalog_name}.token", config.DATABRICKS_TOKEN or "")
@@ -122,7 +160,9 @@ def build_spark_session(catalog_name: str, write_mode: str) -> SparkSession:
             .config("spark.sql.session.timeZone", "UTC")
         )
     if LOG4J_CONFIG.exists():
-        builder = builder.config("spark.driver.extraJavaOptions", f"-Dlog4j.configurationFile={LOG4J_CONFIG.as_uri()}")
+        builder = builder.config(
+            "spark.driver.extraJavaOptions", f"-Dlog4j.configurationFile={LOG4J_CONFIG.as_uri()}"
+        )
     spark = builder.getOrCreate()
     spark.sparkContext.setLogLevel("ERROR")
     return spark
@@ -160,7 +200,15 @@ def _get_mart_engine():
     query = {}
     if getattr(config, "POSTGRES_SSLMODE", None):
         query["sslmode"] = config.POSTGRES_SSLMODE
-    url = URL.create("postgresql+psycopg2", username=user, password=password, host=host, port=port, database=database, query=query)
+    url = URL.create(
+        "postgresql+psycopg2",
+        username=user,
+        password=password,
+        host=host,
+        port=port,
+        database=database,
+        query=query,
+    )
     return create_engine(url)
 
 
@@ -178,10 +226,23 @@ def _demo_gold_df(spark: SparkSession, table: str):
 
     if table == "dim_date":
         dates = pd.date_range("2020-01-01", "2020-01-05", freq="D")
-        pdf = pd.DataFrame({"date_key": dates.strftime("%Y%m%d").astype(int), "full_date": dates, "year": dates.year})
+        pdf = pd.DataFrame(
+            {
+                "date_key": dates.strftime("%Y%m%d").astype(int),
+                "full_date": dates,
+                "year": dates.year,
+            }
+        )
         return spark.createDataFrame(pdf)
     if table == "dim_customers":
-        pdf = pd.DataFrame({"customer_sk": ["sk1"], "customer_id": ["CUST_001"], "customer_name": ["Acme"], "is_current": [True]})
+        pdf = pd.DataFrame(
+            {
+                "customer_sk": ["sk1"],
+                "customer_id": ["CUST_001"],
+                "customer_name": ["Acme"],
+                "is_current": [True],
+            }
+        )
         return spark.createDataFrame(pdf)
     if table.startswith("dim_"):
         pdf = pd.DataFrame({f"{table}_sk": ["sk1"], f"{table.replace('dim_', '')}_id": ["ID_001"]})
@@ -190,13 +251,23 @@ def _demo_gold_df(spark: SparkSession, table: str):
     return spark.createDataFrame(pdf)
 
 
-def read_gold_table(spark: SparkSession, catalog: str, gold_schema: str, table: str, write_mode: str, local_path: str, demo: bool = False):
+def read_gold_table(
+    spark: SparkSession,
+    catalog: str,
+    gold_schema: str,
+    table: str,
+    write_mode: str,
+    local_path: str,
+    demo: bool = False,
+):
     if demo:
         return _demo_gold_df(spark, table)
     if write_mode == "local":
         path = Path(local_path) / table
         if not (path / "_delta_log").exists() and not path.exists():
-            raise FileNotFoundError(f"Local gold Delta not found at {path}. Run dbt with --write-mode local or use --demo.")
+            raise FileNotFoundError(
+                f"Local gold Delta not found at {path}. Run dbt with --write-mode local or use --demo."
+            )
         return spark.read.format("delta").load(str(path))
     # uc mode: check catalog availability gracefully
     try:
@@ -206,7 +277,19 @@ def read_gold_table(spark: SparkSession, catalog: str, gold_schema: str, table: 
         raise FileNotFoundError(f"UC table not found {catalog}.{gold_schema}.{table}: {e}") from e
 
 
-def publish_table(spark: SparkSession, table: str, catalog: str, gold_schema: str, mart_schema: str, write_mode: str, local_path: str, dry_run: bool, demo: bool = False, jdbc_batch_size: int = 10000, repartition: int = 4) -> dict:
+def publish_table(
+    spark: SparkSession,
+    table: str,
+    catalog: str,
+    gold_schema: str,
+    mart_schema: str,
+    write_mode: str,
+    local_path: str,
+    dry_run: bool,
+    demo: bool = False,
+    jdbc_batch_size: int = 10000,
+    repartition: int = 4,
+) -> dict:
     t0 = datetime.now()
     try:
         df = read_gold_table(spark, catalog, gold_schema, table, write_mode, local_path, demo=demo)
@@ -218,7 +301,12 @@ def publish_table(spark: SparkSession, table: str, catalog: str, gold_schema: st
                 pass
         count = df.count()
         if dry_run:
-            return {"table": table, "rows": count, "status": "dry-run" if not demo else "dry-run (demo)", "elapsed": (datetime.now() - t0).total_seconds()}
+            return {
+                "table": table,
+                "rows": count,
+                "status": "dry-run" if not demo else "dry-run (demo)",
+                "elapsed": (datetime.now() - t0).total_seconds(),
+            }
         jdbc_url = postgres_jdbc_url()
         # Spark JDBC fast options: batchsize 10000, truncate false then overwrite handles 10k+ quickly
         props = postgres_props()
@@ -236,10 +324,20 @@ def publish_table(spark: SparkSession, table: str, catalog: str, gold_schema: st
                     engine.dispose()
                 target = f"{mart_schema}.{table}"
                 df.write.jdbc(url=jdbc_url, table=target, mode="overwrite", properties=props)
-                return {"table": table, "rows": count, "status": "published (demo)", "elapsed": (datetime.now() - t0).total_seconds()}
+                return {
+                    "table": table,
+                    "rows": count,
+                    "status": "published (demo)",
+                    "elapsed": (datetime.now() - t0).total_seconds(),
+                }
             except Exception as e:
                 log.warning(f"Demo mart publish skipped, postgres not reachable for {table}: {e}")
-                return {"table": table, "rows": count, "status": "demo: postgres not reachable, counted only", "elapsed": (datetime.now() - t0).total_seconds()}
+                return {
+                    "table": table,
+                    "rows": count,
+                    "status": "demo: postgres not reachable, counted only",
+                    "elapsed": (datetime.now() - t0).total_seconds(),
+                }
         # Ensure mart schema exists in MART DB
         try:
             from sqlalchemy import text
@@ -255,22 +353,43 @@ def publish_table(spark: SparkSession, table: str, catalog: str, gold_schema: st
 
         target = f"{mart_schema}.{table}"
         df.write.jdbc(url=jdbc_url, table=target, mode="overwrite", properties=props)
-        return {"table": table, "rows": count, "status": "published", "elapsed": (datetime.now() - t0).total_seconds()}
+        return {
+            "table": table,
+            "rows": count,
+            "status": "published",
+            "elapsed": (datetime.now() - t0).total_seconds(),
+        }
     except FileNotFoundError as e:
         # Missing gold source is a skip, not an error traceback
         log.warning(f"Skipped {table}: {e}")
-        return {"table": table, "rows": 0, "status": f"skipped: {str(e)[:140]}", "elapsed": (datetime.now() - t0).total_seconds()}
+        return {
+            "table": table,
+            "rows": 0,
+            "status": f"skipped: {str(e)[:140]}",
+            "elapsed": (datetime.now() - t0).total_seconds(),
+        }
     except Exception as e:
         log.exception(f"Failed to publish {table}")
-        return {"table": table, "rows": 0, "status": f"error: {str(e)[:180]}", "elapsed": (datetime.now() - t0).total_seconds()}
+        return {
+            "table": table,
+            "rows": 0,
+            "status": f"error: {str(e)[:180]}",
+            "elapsed": (datetime.now() - t0).total_seconds(),
+        }
 
 
 def main() -> None:
     args = parse_args()
-    tables: List[str] = [t.strip() for t in args.tables.split(",") if t.strip()] if args.tables else DEFAULT_GOLD_TABLES
+    tables: list[str] = (
+        [t.strip() for t in args.tables.split(",") if t.strip()]
+        if args.tables
+        else DEFAULT_GOLD_TABLES
+    )
     write_mode = resolve_write_mode(args.write_mode)
     mode_label = f"{write_mode}" + (" + demo" if args.demo else "")
-    console.print(f"[cyan]Publishing {len(tables)} gold tables {args.gold_schema} -> Postgres {args.mart_schema} (mode={mode_label})[/cyan]")
+    console.print(
+        f"[cyan]Publishing {len(tables)} gold tables {args.gold_schema} -> Postgres {args.mart_schema} (mode={mode_label})[/cyan]"
+    )
     if args.dry_run:
         console.print("[yellow]dry-run: counting only[/yellow]")
     if args.demo:
@@ -280,7 +399,19 @@ def main() -> None:
     results = []
     for tbl in tables:
         console.print(f"Publishing {tbl}...")
-        res = publish_table(spark, tbl, args.catalog, args.gold_schema, args.mart_schema, write_mode, args.local_gold_path, args.dry_run, demo=args.demo, jdbc_batch_size=args.jdbc_batch_size, repartition=args.repartition)
+        res = publish_table(
+            spark,
+            tbl,
+            args.catalog,
+            args.gold_schema,
+            args.mart_schema,
+            write_mode,
+            args.local_gold_path,
+            args.dry_run,
+            demo=args.demo,
+            jdbc_batch_size=args.jdbc_batch_size,
+            repartition=args.repartition,
+        )
         results.append(res)
 
     summary = Table(title="Publish summary PG_MART")
@@ -293,7 +424,9 @@ def main() -> None:
         total += r["rows"]
         summary.add_row(r["table"], f"{r['rows']:,}", r["status"], f"{r['elapsed']:.1f}s")
     console.print(summary)
-    console.print(f"[bold green]Done.[/bold green] {total:,} rows across {len(results)} tables -> {args.mart_schema}")
+    console.print(
+        f"[bold green]Done.[/bold green] {total:,} rows across {len(results)} tables -> {args.mart_schema}"
+    )
 
     spark.stop()
 
